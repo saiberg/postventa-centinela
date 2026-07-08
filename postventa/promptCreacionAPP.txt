@@ -1,0 +1,42 @@
+Necesito crear una aplicación web, que se pondrá como link dentro del sitio "https://icentinela.cl/", por lo que se debe tomar este sitio como base en cuanto a su apariencia gráfica.
+
+En la raiz de este sitio o directorio está el logo de la empresam archivo "logo-centinela-300x88.png", cuando organices los archivos de la aplicación lo puedes mover donde estimes conveniente.
+
+La aplicación se debe construir en PHP y MySql, con una API PHP para acceder a los datos de la base de datos. Debe cumplir con funcionar bajo el siguiente escenario:
+- Base de datos 10.2.44 MariaDB
+- Usuario: root@127.0.0.1
+- Clave: S1gr04040
+- Conjunto de caracteres del servidor: UTF-8 Unicode (utf8)
+- Versión de PHP 5.6.40
+
+Especificaciones de la aplicación:
+- Introducción
+El objetivo es crear una plataforma web de atención postventa para Inmobiliaria Centinela, que permita a propietarios y administrativos registrar de manera simple y eficiente sus solicitudes, requerimientos y reclamos asociados a sus propiedades. La solución se integrará con el sistema de postventa Sigro, facilitando la gestión centralizada de los casos, la actualización automática de estados y el seguimiento en línea por parte de los clientes. De esta forma, se busca mejorar la experiencia de servicio, optimizar los tiempos de respuesta y proporcionar una comunicación transparente durante todo el ciclo de atención de cada requerimiento.
+
+- Descripción de la aplicación a construir
+1.- Debe existir una página de ingreso mediante usuario y contraseña. Además, debe tener la
+opción de “Registro” para cuando el cliente trate de ingresar la primera al vez al sitio y una opción para “recuperar contraseña” y la opción “recordarme”.
+
+2.- Debe tener una segunda página que muestre el estado de los casos del cliente logueado y una estadística de los tiempos promedios de resolución. Debe contener a lo menos: Tabla con los casos ingresados por el cliente, con el estado del caso, en el caso que el caso se encuentre agendado debe mostrar las fechas de agendamiento y el equipo asignado. Si el caso se clasifique como “No corresponde” debe también mostrarlo. Y el caso no ha sido revisado debe mostrar como “Pendiente”. Además debe tener un botón que permita el ingreso de un nuevo caso el cual se describe en el punto 3.
+
+3.- Una página de ingreso de solicitudes de reparación/atención que contenga los siguientes secciones y campos:
+A. Sección de Identificación
+Campos: RUT/DNI, Nombre completo, Correo y Teléfono.
+Rol: Un selector que defina si es Propietario/Residente o Administrador del Edificio (esto habilita las áreas comunes).
+B. Sección: Ubicación del Problema
+Si es Propietario: Dropdown con su N° de Departamento, Bodega o Estacionamiento asignado.
+Si es Administrador: Menú desplegable con áreas comunes (Quinchos, Piscina, Hall, Ascensores, Estacionamiento de visitas, Fachada, etc.).
+C. Sección: Clasificación Simple (Categorías)
+Para evitar que el usuario se confunda, se usan categorías macro con subcategorías dinámicas:
+Fallas Estructurales/Estéticas: Fisuras, pintura, desprendimientos.
+Instalaciones (Gas/Agua/Luz): Filtraciones, cortocircuitos, falta de presión, calefacción.
+Terminaciones: Puertas descuadradas, ventanas que no cierran, pisos flotantes levantados.
+D. Sección: Evidencia y Descripción
+Zona de arrastre (Drag & Drop): Para subir fotos o videos cortos (máx. 50MB).
+Detalle: Un cuadro de texto breve para observaciones adicionales.
+E. Sección: Días disponibles para visita
+F. Sección: Ver estado de mis solicitudes
+
+4.- Adicionalmente se debe crear otra página donde solo accederá el usuario con perfil de administrador, donde podrá ver un listado de las solicitudes realizadas, además del detalle de cada una y la finalidad de esto es que pueda "aprobar" cada solicitud a través de un botón o algo similar.
+
+Construye por ahora solo la maqueta visual, sin acceso a la base de datos, solo algo con datos fijos por ahora, para que nos centremos en el diseño mientras.

@@ -1,0 +1,28 @@
+# Postventa Centinela - Configuración Apache
+RewriteEngine On
+
+# Redirigir a login si no está autenticado (para futuro)
+# RewriteCond %{REQUEST_URI} !^/postventa/(login|registro|recuperar|assets) [NC]
+# RewriteCond %{REQUEST_FILENAME} !-f
+# RewriteRule ^(.*)$ login.php [L]
+
+# Página de inicio
+DirectoryIndex index.php
+
+# Proteger archivos sensibles
+<FilesMatch "config\.php">
+    Order deny,allow
+    Deny from all
+</FilesMatch>
+
+# Cache de assets
+<IfModule mod_expires.c>
+    ExpiresActive On
+    ExpiresByType image/png "access plus 1 month"
+    ExpiresByType image/jpeg "access plus 1 month"
+    ExpiresByType text/css "access plus 1 week"
+    ExpiresByType application/javascript "access plus 1 week"
+</IfModule>
+
+# Codificación UTF-8
+AddDefaultCharset UTF-8

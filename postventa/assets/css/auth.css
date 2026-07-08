@@ -1,0 +1,202 @@
+/* ============================================
+   ESTILOS DE AUTENTICACIÓN (Login, Registro, Recuperar)
+   ============================================ */
+
+.auth-page {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #f5f7fa 0%, #e8ecf1 100%);
+    padding: 20px;
+}
+
+.auth-container {
+    width: 100%;
+    max-width: 460px;
+}
+
+.auth-card {
+    background: var(--color-white);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-xl);
+    overflow: hidden;
+}
+
+.auth-header {
+    background: var(--color-primary);
+    padding: 32px 32px 24px;
+    text-align: center;
+    color: var(--color-white);
+}
+
+.auth-header .auth-logo {
+    height: 52px;
+    margin-bottom: 16px;
+}
+
+.auth-header h1 {
+    font-family: var(--font-heading);
+    font-size: 1.3rem;
+    font-weight: 600;
+    margin-bottom: 4px;
+}
+
+.auth-header p {
+    font-size: 0.85rem;
+    opacity: 0.9;
+}
+
+.auth-body {
+    padding: 32px;
+}
+
+.auth-body .form-group {
+    margin-bottom: 20px;
+}
+
+.auth-body .form-group label {
+    font-size: 0.82rem;
+    color: var(--color-gray-700);
+    margin-bottom: 5px;
+}
+
+.auth-body .form-control {
+    padding: 11px 14px;
+    font-size: 0.9rem;
+    border-radius: var(--radius-sm);
+}
+
+.auth-body .form-control:focus {
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 3px rgba(96, 132, 24, 0.12);
+}
+
+/* Checkbox recordarme */
+.remember-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 24px;
+}
+
+.remember-check {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.85rem;
+    color: var(--color-gray-600);
+    cursor: pointer;
+}
+
+.remember-check input[type="checkbox"] {
+    accent-color: var(--color-primary);
+    width: 16px;
+    height: 16px;
+}
+
+.forgot-link {
+    font-size: 0.85rem;
+    color: var(--color-accent);
+    font-weight: 500;
+}
+
+.forgot-link:hover {
+    color: var(--color-accent-dark);
+    text-decoration: underline;
+}
+
+.auth-footer {
+    text-align: center;
+    padding: 0 32px 32px;
+    font-size: 0.85rem;
+    color: var(--color-gray-600);
+}
+
+.auth-footer a {
+    color: var(--color-primary);
+    font-weight: 600;
+}
+
+.auth-footer a:hover {
+    text-decoration: underline;
+}
+
+/* Separador */
+.auth-divider {
+    display: flex;
+    align-items: center;
+    margin: 24px 0;
+    color: var(--color-gray-500);
+    font-size: 0.8rem;
+}
+
+.auth-divider::before,
+.auth-divider::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--color-gray-300);
+}
+
+.auth-divider span {
+    padding: 0 16px;
+}
+
+/* Página de registro más ancha */
+.auth-container.wide {
+    max-width: 580px;
+}
+
+/* Página de recuperación */
+.recovery-info {
+    text-align: center;
+    margin-bottom: 24px;
+    padding: 16px;
+    background: var(--color-primary-bg);
+    border-radius: var(--radius-md);
+    font-size: 0.85rem;
+    color: var(--color-gray-700);
+}
+
+.recovery-info i {
+    font-size: 2rem;
+    color: var(--color-primary);
+    display: block;
+    margin-bottom: 8px;
+}
+
+.back-to-login {
+    text-align: center;
+    margin-top: 16px;
+}
+
+.back-to-login a {
+    font-size: 0.85rem;
+    color: var(--color-gray-600);
+}
+
+.back-to-login a:hover {
+    color: var(--color-primary);
+}
+
+/* Responsive */
+@media (max-width: 576px) {
+    .auth-header {
+        padding: 24px 20px 20px;
+    }
+    
+    .auth-body {
+        padding: 24px 20px;
+    }
+    
+    .auth-footer {
+        padding: 0 20px 24px;
+    }
+    
+    .remember-row {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+    }
+}

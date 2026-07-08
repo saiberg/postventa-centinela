@@ -1,0 +1,16 @@
+@"
+# XAMPP / Sistema
+*.log
+*.tmp
+Thumbs.db
+.DS_Store
+*.bak
+*.swp
+*~
+*.zip
+*.rar
+
+# IDE
+.vscode/
+.idea/
+"@ | Out-File -FilePath .gitignore -Encoding UTF8
