@@ -5,19 +5,47 @@
  */
 require_once 'includes/config.php';
 
-// Verificar sesión (simulado)
+// Verificar sesión
 if (!isset($_SESSION['usuario_id'])) {
-    // Para la maqueta, simulamos un usuario logueado
-    $_SESSION['usuario_id'] = 1;
-    $_SESSION['usuario_nombre'] = 'Carlos Muñoz';
-    $_SESSION['usuario_email'] = 'carlos@email.com';
-    $_SESSION['es_admin'] = 0;
+    header('Location: login.php');
+    exit;
 }
 
 $isAdmin = isset($_SESSION['es_admin']) && $_SESSION['es_admin'] == 1;
 
-// Datos de ejemplo para la maqueta
-$casos = [
+// Obtener casos reales de la BD (o datos de ejemplo si no hay)
+$casos = [];
+$db = getDB();
+$stmt = $db->prepare("SELECT id, created_at, categoria, subcategoria, ubicacion_valor, estado, fecha_agendamiento, equipo_asignado FROM icentPventaSolicitudes WHERE usuario_id = ? ORDER BY created_at DESC");
+$stmt->bind_param('i', $_SESSION['usuario_id']);
+$stmt->execute();
+$result = $stmt->get_result();
+
+while ($row = $result->fetch_assoc()) {
+    $estadoLabel = [
+        'pendiente' => 'Pendiente',
+        'aprobado' => 'Aprobado',
+        'no_corresponde' => 'No Corresponde',
+        'agendado' => 'Agendado',
+        'en_proceso' => 'En Proceso',
+        'resuelto' => 'Resuelto'
+    ];
+    $casos[] = [
+        'id' => 'PC-' . date('Y') . '-' . str_pad($row['id'], 3, '0', STR_PAD_LEFT),
+        'fecha' => date('d/m/Y', strtotime($row['created_at'])),
+        'categoria' => $row['categoria'],
+        'subcategoria' => $row['subcategoria'],
+        'ubicacion' => $row['ubicacion_valor'],
+        'estado' => $row['estado'],
+        'estado_label' => isset($estadoLabel[$row['estado']]) ? $estadoLabel[$row['estado']] : $row['estado'],
+        'agendamiento' => $row['fecha_agendamiento'] ? date('d/m/Y - H:i', strtotime($row['fecha_agendamiento'])) : null,
+        'equipo' => $row['equipo_asignado']
+    ];
+}
+
+// Si no hay casos, usar datos de ejemplo para la demo visual
+if (empty($casos)) {
+    $casos = [
     [
         'id' => 'PC-2024-001',
         'fecha' => '15/03/2024',
@@ -85,6 +113,7 @@ $casos = [
         'equipo' => 'Equipo Técnico A (Juan Pérez)'
     ],
 ];
+} // fin if empty($casos)
 
 // Estadísticas
 $totalCasos = count($casos);

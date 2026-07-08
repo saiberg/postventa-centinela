@@ -5,6 +5,14 @@
 
 $(document).ready(function() {
     
+    // --- Inicializar visibilidad según rol pre-seleccionado ---
+    var rolInicial = $('#rol').val();
+    if (rolInicial === 'propietario') {
+        $('#propietario-fields').show();
+    } else if (rolInicial === 'administrador') {
+        $('#admin-fields').show();
+    }
+    
     // --- Selector de Rol: muestra/oculta campos según rol ---
     $('#rol').on('change', function() {
         var rol = $(this).val();
@@ -168,18 +176,11 @@ $(document).ready(function() {
         e.preventDefault();
         
         var errors = [];
-        var rut = $('#rut').val().trim();
-        var nombre = $('#nombre').val().trim();
-        var email = $('#email').val().trim();
-        var telefono = $('#telefono').val().trim();
-        var rol = $('#rol').val();
+        // Tomar el valor del hidden si existe (rol fijo), sino del select (admin_sistema)
+        var rol = $('input[name="rol"]').val() || $('#rol').val();
         var categoria = $('#categoria').val();
         var subcategoria = $('#subcategoria').val();
         
-        if (!rut) errors.push('RUT/DNI es obligatorio');
-        if (!nombre) errors.push('Nombre completo es obligatorio');
-        if (!email) errors.push('Correo electrónico es obligatorio');
-        if (!telefono) errors.push('Teléfono es obligatorio');
         if (!rol) errors.push('Debe seleccionar un rol');
         if (!categoria) errors.push('Debe seleccionar una categoría');
         if (!subcategoria) errors.push('Debe seleccionar una subcategoría');

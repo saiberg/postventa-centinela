@@ -5,18 +5,46 @@
  */
 require_once 'includes/config.php';
 
-// Simular sesión admin para maqueta
-if (!isset($_SESSION['usuario_id'])) {
-    $_SESSION['usuario_id'] = 2;
-    $_SESSION['usuario_nombre'] = 'Admin Postventa';
-    $_SESSION['usuario_email'] = 'admin@icentinela.cl';
-    $_SESSION['es_admin'] = 1;
+// Verificar sesión y que sea admin
+if (!isset($_SESSION['usuario_id']) || !isset($_SESSION['es_admin']) || $_SESSION['es_admin'] != 1) {
+    header('Location: login.php');
+    exit;
 }
 
-// Datos de ejemplo para la tabla de administración
-$solicitudes = [
+// Obtener solicitudes de la BD
+$solicitudes = [];
+$db = getDB();
+$result = $db->query("SELECT s.id, s.created_at, s.rut, s.nombre, s.email, s.telefono, s.rol_solicitante, 
+                             s.ubicacion_valor, s.categoria, s.subcategoria, s.estado, s.detalle, s.dias_disponibles
+                      FROM icentPventaSolicitudes s 
+                      ORDER BY s.created_at DESC");
+
+while ($row = $result->fetch_assoc()) {
+    $solicitudes[] = [
+        'id' => 'PC-' . date('Y') . '-' . str_pad($row['id'], 3, '0', STR_PAD_LEFT),
+        'id_num' => $row['id'],
+        'fecha' => date('d/m/Y', strtotime($row['created_at'])),
+        'rut' => $row['rut'],
+        'nombre' => $row['nombre'],
+        'email' => $row['email'],
+        'telefono' => $row['telefono'],
+        'rol' => $row['rol_solicitante'] === 'administrador_edificio' ? 'Administrador' : 'Propietario',
+        'ubicacion' => $row['ubicacion_valor'],
+        'categoria' => $row['categoria'],
+        'subcategoria' => $row['subcategoria'],
+        'estado' => $row['estado'],
+        'detalle' => $row['detalle'],
+        'dias' => $row['dias_disponibles'],
+        'evidencia' => 0
+    ];
+}
+
+// Si no hay datos, usar datos de ejemplo
+if (empty($solicitudes)) {
+    $solicitudes = [
     [
         'id' => 'PC-2024-001',
+        'id_num' => '001',
         'fecha' => '15/03/2024',
         'rut' => '12.345.678-9',
         'nombre' => 'Carlos Muñoz R.',
@@ -144,6 +172,7 @@ $solicitudes = [
         'evidencia' => 1
     ],
 ];
+} // fin if empty($solicitudes)
 
 include 'includes/header.php';
 ?>
@@ -256,14 +285,14 @@ include 'includes/header.php';
                                 <td><span class="badge <?php echo $badgeClass; ?>"><?php echo $estadoLabel; ?></span></td>
                                 <td>
                                     <div class="action-buttons">
-                                        <button class="action-btn view view-case" data-case-id="<?php echo substr($sol['id'], -3); ?>" title="Ver detalle">
+                                        <button class="action-btn view view-case" data-case-id="<?php echo $sol['id_num']; ?>" title="Ver detalle">
                                             <i class="fas fa-eye"></i>
                                         </button>
                                         <?php if ($sol['estado'] === 'pendiente'): ?>
-                                        <button class="action-btn approve approve-case" data-case-id="<?php echo substr($sol['id'], -3); ?>" title="Aprobar">
+                                        <button class="action-btn approve approve-case" data-case-id="<?php echo $sol['id_num']; ?>" title="Aprobar">
                                             <i class="fas fa-check"></i>
                                         </button>
-                                        <button class="action-btn reject reject-case" data-case-id="<?php echo substr($sol['id'], -3); ?>" title="Rechazar">
+                                        <button class="action-btn reject reject-case" data-case-id="<?php echo $sol['id_num']; ?>" title="Rechazar">
                                             <i class="fas fa-times"></i>
                                         </button>
                                         <?php endif; ?>

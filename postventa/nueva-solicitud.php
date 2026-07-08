@@ -4,14 +4,38 @@
  * Formulario de ingreso de solicitudes de reparación/atención
  */
 require_once 'includes/config.php';
+require_once 'includes/api_helper.php';
 
-// Simular sesión para maqueta
+// Verificar sesión
 if (!isset($_SESSION['usuario_id'])) {
-    $_SESSION['usuario_id'] = 1;
-    $_SESSION['usuario_nombre'] = 'Carlos Muñoz';
-    $_SESSION['usuario_email'] = 'carlos@email.com';
-    $_SESSION['es_admin'] = 0;
+    header('Location: login.php');
+    exit;
 }
+
+// Obtener datos del usuario a través de la API
+$apiResponse = apiCall('usuarios.php?action=perfil', array());
+$usuario = ($apiResponse['success'] && isset($apiResponse['user'])) ? $apiResponse['user'] : null;
+
+// Fallback con datos de sesión si la API falla
+if (!$usuario) {
+    $usuario = array(
+        'rut'      => isset($_SESSION['usuario_rut']) ? $_SESSION['usuario_rut'] : '',
+        'nombre'   => $_SESSION['usuario_nombre'],
+        'email'    => $_SESSION['usuario_email'],
+        'telefono' => '',
+        'rol'      => isset($_SESSION['usuario_rol']) ? $_SESSION['usuario_rol'] : 'propietario'
+    );
+}
+
+// Determinar el rol para el selector
+$rolSesion = $usuario['rol'];
+$esAdminSistema = ($rolSesion === 'admin_sistema');
+$esAdminEdificio = ($rolSesion === 'administrador_edificio');
+$esPropietario = ($rolSesion === 'propietario');
+
+// El admin_sistema puede elegir rol; los demás lo tienen fijo
+$rolFijo = !$esAdminSistema;
+$rolDefault = $esAdminEdificio ? 'administrador' : 'propietario';
 
 // Datos de ejemplo para los dropdowns
 $departamentos = [
@@ -57,261 +81,6 @@ $areasComunes = [
 include 'includes/header.php';
 ?>
 
-<style>
-/* Estilos específicos del formulario de solicitud */
-.solicitud-container {
-    max-width: 900px;
-    margin: 0 auto;
-    padding: 28px 20px;
-}
-
-.solicitud-header {
-    margin-bottom: 28px;
-}
-
-.solicitud-header h1 {
-    font-family: var(--font-heading);
-    font-size: 1.6rem;
-    font-weight: 700;
-    color: var(--color-gray-900);
-    display: flex;
-    align-items: center;
-    gap: 10px;
-}
-
-.solicitud-header h1 i {
-    color: var(--color-primary);
-}
-
-.solicitud-header p {
-    color: var(--color-gray-600);
-    font-size: 0.9rem;
-    margin-top: 4px;
-}
-
-/* Secciones del formulario */
-.form-section {
-    background: var(--color-white);
-    border-radius: var(--radius-md);
-    box-shadow: var(--shadow-sm);
-    border: 1px solid var(--color-gray-200);
-    margin-bottom: 24px;
-    overflow: hidden;
-}
-
-.form-section-header {
-    background: var(--color-primary-bg);
-    padding: 16px 24px;
-    border-bottom: 2px solid var(--color-primary);
-    display: flex;
-    align-items: center;
-    gap: 12px;
-}
-
-.form-section-header .section-number {
-    width: 32px;
-    height: 32px;
-    background: var(--color-primary);
-    color: var(--color-white);
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-weight: 700;
-    font-size: 0.9rem;
-    font-family: var(--font-heading);
-    flex-shrink: 0;
-}
-
-.form-section-header h2 {
-    font-family: var(--font-heading);
-    font-size: 1.05rem;
-    font-weight: 600;
-    color: var(--color-gray-900);
-}
-
-.form-section-body {
-    padding: 24px;
-}
-
-/* Drop Zone para archivos */
-.drop-zone {
-    border: 2px dashed var(--color-gray-400);
-    border-radius: var(--radius-md);
-    padding: 32px;
-    text-align: center;
-    cursor: pointer;
-    transition: all var(--transition-fast);
-    background: var(--color-gray-100);
-}
-
-.drop-zone:hover, .drop-zone.dragover {
-    border-color: var(--color-primary);
-    background: var(--color-primary-bg);
-}
-
-.drop-zone .drop-icon {
-    font-size: 2.5rem;
-    color: var(--color-primary);
-    margin-bottom: 8px;
-}
-
-.drop-zone .drop-text {
-    font-size: 0.9rem;
-    color: var(--color-gray-600);
-}
-
-.drop-zone .drop-hint {
-    font-size: 0.78rem;
-    color: var(--color-gray-500);
-    margin-top: 4px;
-}
-
-/* Lista de archivos */
-.file-list {
-    margin-top: 16px;
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-}
-
-.file-item {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 10px 14px;
-    background: var(--color-gray-100);
-    border-radius: var(--radius-sm);
-    border: 1px solid var(--color-gray-200);
-    font-size: 0.85rem;
-}
-
-.file-item i {
-    color: var(--color-primary);
-    font-size: 1.1rem;
-}
-
-.file-item .file-name {
-    flex: 1;
-    font-weight: 500;
-    color: var(--color-gray-800);
-}
-
-.file-item .file-size {
-    color: var(--color-gray-500);
-    font-size: 0.78rem;
-}
-
-.file-item .file-remove {
-    background: none;
-    border: none;
-    color: var(--color-danger);
-    cursor: pointer;
-    padding: 4px;
-    font-size: 0.9rem;
-}
-
-.file-item .file-remove:hover {
-    color: #a71d2a;
-}
-
-/* Días disponibles */
-.days-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-    gap: 12px;
-}
-
-.day-card {
-    background: var(--color-gray-100);
-    border: 1px solid var(--color-gray-200);
-    border-radius: var(--radius-sm);
-    padding: 14px;
-    transition: all var(--transition-fast);
-}
-
-.day-card:hover {
-    border-color: var(--color-primary);
-}
-
-.day-card .day-name {
-    font-family: var(--font-heading);
-    font-weight: 600;
-    font-size: 0.9rem;
-    margin-bottom: 8px;
-    color: var(--color-gray-800);
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-}
-
-.day-card .day-toggle {
-    font-size: 0.7rem;
-    color: var(--color-primary);
-    cursor: pointer;
-    font-weight: 500;
-}
-
-.day-card .day-toggle:hover {
-    text-decoration: underline;
-}
-
-.day-card .day-options {
-    display: flex;
-    gap: 16px;
-}
-
-.day-card .day-options label {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    font-size: 0.82rem;
-    font-weight: 400;
-    cursor: pointer;
-    color: var(--color-gray-700);
-}
-
-.day-card .day-options input[type="checkbox"] {
-    accent-color: var(--color-primary);
-}
-
-/* Navegación del formulario */
-.form-navigation {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-top: 24px;
-    padding-top: 24px;
-    border-top: 1px solid var(--color-gray-200);
-}
-
-/* Responsive */
-@media (max-width: 768px) {
-    .days-grid {
-        grid-template-columns: 1fr 1fr;
-    }
-}
-
-@media (max-width: 576px) {
-    .days-grid {
-        grid-template-columns: 1fr;
-    }
-    
-    .form-section-body {
-        padding: 16px;
-    }
-    
-    .form-navigation {
-        flex-direction: column;
-        gap: 12px;
-    }
-    
-    .form-navigation .btn {
-        width: 100%;
-    }
-}
-</style>
-
 <div class="solicitud-container">
     
     <div class="solicitud-header">
@@ -331,33 +100,39 @@ include 'includes/header.php';
                 <h2>Identificación del Solicitante</h2>
             </div>
             <div class="form-section-body">
+                <p class="text-muted mb-2" style="font-size:0.82rem;">
+                    <i class="fas fa-info-circle"></i> Datos de su cuenta. Si necesita modificarlos, hágalo desde <a href="perfil.php">Mi Perfil</a>.
+                </p>
                 <div class="form-row">
                     <div class="form-group">
-                        <label for="rut">RUT/DNI <span class="required">*</span></label>
-                        <input type="text" id="rut" name="rut" class="form-control" placeholder="12.345.678-9" value="12.345.678-9">
+                        <label for="rut">RUT/DNI</label>
+                        <input type="text" id="rut" name="rut" class="form-control" value="<?php echo htmlspecialchars($usuario['rut']); ?>" readonly>
                     </div>
                     <div class="form-group">
-                        <label for="nombre">Nombre Completo <span class="required">*</span></label>
-                        <input type="text" id="nombre" name="nombre" class="form-control" placeholder="Nombre y apellidos" value="Carlos Muñoz R.">
+                        <label for="nombre">Nombre Completo</label>
+                        <input type="text" id="nombre" name="nombre" class="form-control" value="<?php echo htmlspecialchars($usuario['nombre']); ?>" readonly>
                     </div>
                 </div>
                 <div class="form-row">
                     <div class="form-group">
-                        <label for="email">Correo Electrónico <span class="required">*</span></label>
-                        <input type="email" id="email" name="email" class="form-control" placeholder="correo@ejemplo.com" value="carlos@email.com">
+                        <label for="email">Correo Electrónico</label>
+                        <input type="email" id="email" name="email" class="form-control" value="<?php echo htmlspecialchars($usuario['email']); ?>" readonly>
                     </div>
                     <div class="form-group">
-                        <label for="telefono">Teléfono <span class="required">*</span></label>
-                        <input type="tel" id="telefono" name="telefono" class="form-control" placeholder="+56 9 XXXX XXXX" value="+56 9 1234 5678">
+                        <label for="telefono">Teléfono</label>
+                        <input type="tel" id="telefono" name="telefono" class="form-control" value="<?php echo htmlspecialchars($usuario['telefono']); ?>" readonly>
                     </div>
                 </div>
                 <div class="form-group">
-                    <label for="rol">Rol <span class="required">*</span></label>
-                    <select id="rol" name="rol" class="form-control">
+                    <label for="rol">Rol <?php if ($esAdminSistema): ?><span class="required">*</span><?php endif; ?></label>
+                    <select id="rol" name="rol" class="form-control" <?php echo $rolFijo ? 'disabled' : ''; ?>>
                         <option value="">Seleccione su rol...</option>
-                        <option value="propietario">Propietario / Residente</option>
-                        <option value="administrador">Administrador del Edificio</option>
+                        <option value="propietario" <?php echo ($rolDefault === 'propietario') ? 'selected' : ''; ?>>Propietario / Residente</option>
+                        <option value="administrador" <?php echo ($rolDefault === 'administrador') ? 'selected' : ''; ?>>Administrador del Edificio</option>
                     </select>
+                    <?php if ($rolFijo): ?>
+                    <input type="hidden" name="rol" value="<?php echo $rolDefault; ?>">
+                    <?php endif; ?>
                 </div>
             </div>
         </div>

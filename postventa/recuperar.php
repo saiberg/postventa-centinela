@@ -1,9 +1,9 @@
 <?php
 /**
  * Página de Recuperación de Contraseña - Postventa Centinela
- * Maqueta visual sin conexión a base de datos
  */
 require_once 'includes/config.php';
+require_once 'includes/api_helper.php';
 
 if (isset($_SESSION['usuario_id'])) {
     header('Location: dashboard.php');
@@ -19,7 +19,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (empty($email)) {
         $error = 'Por favor ingrese su correo electrónico.';
     } else {
-        // Simulación de envío
+        // Llamar a la API
+        apiCall('usuarios.php?action=recuperar', array('email' => $email));
         $sent = true;
     }
 }
@@ -32,6 +33,8 @@ $pageTitle = 'Recuperar Contraseña';
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo $pageTitle; ?> - Postventa Centinela</title>
+    <link rel="icon" type="image/png" sizes="32x32" href="assets/img/favicon.png">
+    <link rel="apple-touch-icon" href="assets/img/favicon.png">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">

@@ -15,6 +15,10 @@ $currentPage = basename($_SERVER['PHP_SELF']);
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo SITE_NAME; ?> - Inmobiliaria Centinela</title>
     
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" sizes="32x32" href="<?php echo IMG_URL; ?>favicon.png">
+    <link rel="apple-touch-icon" href="<?php echo IMG_URL; ?>favicon.png">
+    
     <!-- Google Fonts - Montserrat (misma fuente del sitio principal) -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -27,7 +31,7 @@ $currentPage = basename($_SERVER['PHP_SELF']);
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     
     <!-- CSS Principal -->
-    <link rel="stylesheet" href="<?php echo ASSETS_URL; ?>css/main.css">
+    <link rel="stylesheet" href="<?php echo ASSETS_URL; ?>css/main.css?v=1.0">
     
     <!-- CSS específico de página -->
     <?php if ($currentPage == 'login.php' || $currentPage == 'registro.php' || $currentPage == 'recuperar.php'): ?>
@@ -35,6 +39,9 @@ $currentPage = basename($_SERVER['PHP_SELF']);
     <?php endif; ?>
     <?php if ($currentPage == 'dashboard.php' || $currentPage == 'nueva-solicitud.php' || $currentPage == 'mis-solicitudes.php'): ?>
     <link rel="stylesheet" href="<?php echo ASSETS_URL; ?>css/dashboard.css">
+    <?php endif; ?>
+    <?php if ($currentPage == 'nueva-solicitud.php'): ?>
+    <link rel="stylesheet" href="<?php echo ASSETS_URL; ?>css/solicitud.css">
     <?php endif; ?>
     <?php if ($currentPage == 'admin.php' || $currentPage == 'admin-detalle.php'): ?>
     <link rel="stylesheet" href="<?php echo ASSETS_URL; ?>css/admin.css">

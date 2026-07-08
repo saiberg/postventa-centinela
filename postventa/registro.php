@@ -1,9 +1,9 @@
 <?php
 /**
  * Página de Registro - Postventa Centinela
- * Maqueta visual sin conexión a base de datos
  */
 require_once 'includes/config.php';
+require_once 'includes/api_helper.php';
 
 if (isset($_SESSION['usuario_id'])) {
     header('Location: dashboard.php');
@@ -27,10 +27,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $error = 'Las contraseñas no coinciden.';
     } elseif (strlen($password) < 6) {
         $error = 'La contraseña debe tener al menos 6 caracteres.';
+    } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        $error = 'El formato del correo no es válido.';
     } else {
-        // Simulación de registro exitoso
-        $success = '¡Registro exitoso! Redirigiendo al inicio de sesión...';
-        // En producción: insertar en BD y enviar email de verificación
+        // Llamar a la API
+        $data = apiCall('usuarios.php?action=registro', array(
+            'rut'       => $rut,
+            'nombre'    => $nombre,
+            'email'     => $email,
+            'password'  => $password,
+            'password2' => $password2,
+            'telefono'  => $telefono
+        ));
+        
+        if ($data['success']) {
+            $success = '¡Registro exitoso! Redirigiendo al inicio de sesión...';
+        } else {
+            $error = $data['message'];
+        }
     }
 }
 
@@ -42,6 +56,8 @@ $pageTitle = 'Crear Cuenta';
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo $pageTitle; ?> - Postventa Centinela</title>
+    <link rel="icon" type="image/png" sizes="32x32" href="assets/img/favicon.png">
+    <link rel="apple-touch-icon" href="assets/img/favicon.png">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">

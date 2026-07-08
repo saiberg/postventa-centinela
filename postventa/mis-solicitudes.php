@@ -6,10 +6,8 @@
 require_once 'includes/config.php';
 
 if (!isset($_SESSION['usuario_id'])) {
-    $_SESSION['usuario_id'] = 1;
-    $_SESSION['usuario_nombre'] = 'Carlos Muñoz';
-    $_SESSION['usuario_email'] = 'carlos@email.com';
-    $_SESSION['es_admin'] = 0;
+    header('Location: login.php');
+    exit;
 }
 
 // Datos de ejemplo

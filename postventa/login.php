@@ -1,9 +1,9 @@
 <?php
 /**
  * Página de Login - Postventa Centinela
- * Maqueta visual sin conexión a base de datos
  */
 require_once 'includes/config.php';
+require_once 'includes/api_helper.php';
 
 // Si ya está logueado, redirigir al dashboard
 if (isset($_SESSION['usuario_id'])) {
@@ -11,28 +11,35 @@ if (isset($_SESSION['usuario_id'])) {
     exit;
 }
 
-// Simulación de login para la maqueta
 $error = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $email = isset($_POST['email']) ? trim($_POST['email']) : '';
     $password = isset($_POST['password']) ? $_POST['password'] : '';
+    $remember = isset($_POST['remember']) ? '1' : '0';
     
-    // Simulación: cualquier login con email y contraseña no vacíos funciona
-    if (!empty($email) && !empty($password)) {
-        $_SESSION['usuario_id'] = 1;
-        $_SESSION['usuario_nombre'] = 'Carlos Muñoz';
-        $_SESSION['usuario_email'] = $email;
-        $_SESSION['es_admin'] = (strpos($email, 'admin') !== false) ? 1 : 0;
-        
-        // Recordarme (simulado)
-        if (isset($_POST['remember'])) {
-            setcookie('remember_email', $email, time() + (86400 * 30), '/');
-        }
-        
-        header('Location: dashboard.php');
-        exit;
-    } else {
+    if (empty($email) || empty($password)) {
         $error = 'Por favor ingrese su correo y contraseña.';
+    } else {
+        // Llamar a la API
+        $data = apiCall('usuarios.php?action=login', array(
+            'email'    => $email,
+            'password' => $password,
+            'remember' => $remember
+        ));
+        
+        if ($data['success']) {
+            // La API validó las credenciales, ahora iniciamos sesión localmente
+            $_SESSION['usuario_id']     = $data['user']['id'];
+            $_SESSION['usuario_nombre'] = $data['user']['nombre'];
+            $_SESSION['usuario_email']  = $data['user']['email'];
+            $_SESSION['usuario_rol']    = $data['user']['rol'];
+            $_SESSION['es_admin']       = $data['user']['es_admin'] ? 1 : 0;
+            
+            header('Location: ' . $data['redirect']);
+            exit;
+        } else {
+            $error = $data['message'];
+        }
     }
 }
 
@@ -44,6 +51,8 @@ $pageTitle = 'Iniciar Sesión';
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo $pageTitle; ?> - Postventa Centinela</title>
+    <link rel="icon" type="image/png" sizes="32x32" href="assets/img/favicon.png">
+    <link rel="apple-touch-icon" href="assets/img/favicon.png">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
@@ -114,12 +123,6 @@ $pageTitle = 'Iniciar Sesión';
                     <a href="https://icentinela.cl" target="_blank"><i class="fas fa-arrow-left"></i> Volver a icentinela.cl</a>
                 </p>
             </div>
-        </div>
-        
-        <!-- Nota maqueta -->
-        <div class="text-center mt-3" style="color: #999; font-size: 0.8rem;">
-            <p><i class="fas fa-info-circle"></i> Maqueta visual - Use cualquier correo y contraseña para ingresar.</p>
-            <p>Use un correo que contenga "admin" para acceder como administrador.</p>
         </div>
     </div>
     
