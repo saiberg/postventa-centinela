@@ -1,9 +1,10 @@
 <?php
 require_once __DIR__ . '/config.php';
 
-// Determinar si el usuario está logueado (simulado para maqueta)
+// Determinar si el usuario está logueado
 $isLoggedIn = isset($_SESSION['usuario_id']);
 $isAdmin = isset($_SESSION['es_admin']) && $_SESSION['es_admin'] == 1;
+$isAdminSistema = isset($_SESSION['usuario_rol']) && $_SESSION['usuario_rol'] === 'admin_sistema';
 
 // Página actual para marcar menú activo
 $currentPage = basename($_SERVER['PHP_SELF']);
@@ -43,7 +44,7 @@ $currentPage = basename($_SERVER['PHP_SELF']);
     <?php if ($currentPage == 'nueva-solicitud.php'): ?>
     <link rel="stylesheet" href="<?php echo ASSETS_URL; ?>css/solicitud.css">
     <?php endif; ?>
-    <?php if ($currentPage == 'admin.php' || $currentPage == 'admin-detalle.php'): ?>
+    <?php if ($currentPage == 'admin.php' || $currentPage == 'admin-detalle.php' || $currentPage == 'admin-usuarios.php'): ?>
     <link rel="stylesheet" href="<?php echo ASSETS_URL; ?>css/admin.css">
     <?php endif; ?>
 </head>
@@ -78,6 +79,11 @@ $currentPage = basename($_SERVER['PHP_SELF']);
                     <li class="<?php echo $currentPage == 'admin.php' ? 'active' : ''; ?>">
                         <a href="admin.php"><i class="fas fa-cogs"></i> Administración</a>
                     </li>
+                    <?php if ($isAdminSistema): ?>
+                    <li class="<?php echo $currentPage == 'admin-usuarios.php' ? 'active' : ''; ?>">
+                        <a href="admin-usuarios.php"><i class="fas fa-users-cog"></i> Usuarios</a>
+                    </li>
+                    <?php endif; ?>
                     <?php endif; ?>
                     <li class="nav-user-menu">
                         <a href="#" class="user-dropdown-toggle" id="userDropdownToggle">

@@ -4,6 +4,7 @@
  * Muestra el panel principal con estadísticas y casos del cliente
  */
 require_once 'includes/config.php';
+require_once 'includes/api_helper.php';
 
 // Verificar sesión
 if (!isset($_SESSION['usuario_id'])) {
@@ -13,107 +14,34 @@ if (!isset($_SESSION['usuario_id'])) {
 
 $isAdmin = isset($_SESSION['es_admin']) && $_SESSION['es_admin'] == 1;
 
-// Obtener casos reales de la BD (o datos de ejemplo si no hay)
-$casos = [];
-$db = getDB();
-$stmt = $db->prepare("SELECT id, created_at, categoria, subcategoria, ubicacion_valor, estado, fecha_agendamiento, equipo_asignado FROM icentPventaSolicitudes WHERE usuario_id = ? ORDER BY created_at DESC");
-$stmt->bind_param('i', $_SESSION['usuario_id']);
-$stmt->execute();
-$result = $stmt->get_result();
+// Obtener solicitudes desde la API
+$apiResponse = apiCall('solicitudes.php?action=mis_solicitudes', array());
+$solicitudesRaw = ($apiResponse['success'] && isset($apiResponse['solicitudes'])) ? $apiResponse['solicitudes'] : array();
 
-while ($row = $result->fetch_assoc()) {
-    $estadoLabel = [
-        'pendiente' => 'Pendiente',
-        'aprobado' => 'Aprobado',
-        'no_corresponde' => 'No Corresponde',
-        'agendado' => 'Agendado',
-        'en_proceso' => 'En Proceso',
-        'resuelto' => 'Resuelto'
-    ];
-    $casos[] = [
-        'id' => 'PC-' . date('Y') . '-' . str_pad($row['id'], 3, '0', STR_PAD_LEFT),
-        'fecha' => date('d/m/Y', strtotime($row['created_at'])),
-        'categoria' => $row['categoria'],
-        'subcategoria' => $row['subcategoria'],
-        'ubicacion' => $row['ubicacion_valor'],
-        'estado' => $row['estado'],
-        'estado_label' => isset($estadoLabel[$row['estado']]) ? $estadoLabel[$row['estado']] : $row['estado'],
-        'agendamiento' => $row['fecha_agendamiento'] ? date('d/m/Y - H:i', strtotime($row['fecha_agendamiento'])) : null,
-        'equipo' => $row['equipo_asignado']
-    ];
+$estadoLabel = array(
+    'pendiente'      => 'Pendiente',
+    'aprobado'       => 'Aprobado',
+    'no_corresponde' => 'No Corresponde',
+    'agendado'       => 'Agendado',
+    'en_proceso'     => 'En Proceso',
+    'resuelto'       => 'Resuelto'
+);
+
+$casos = array();
+foreach ($solicitudesRaw as $row) {
+    $casos[] = array(
+        'id'             => 'PC-' . date('Y', strtotime($row['created_at'])) . '-' . str_pad($row['id'], 3, '0', STR_PAD_LEFT),
+        'id_num'         => $row['id'],
+        'fecha'          => date('d/m/Y', strtotime($row['created_at'])),
+        'categoria'      => $row['categoria'],
+        'subcategoria'   => $row['subcategoria'],
+        'ubicacion'      => $row['ubicacion_valor'],
+        'estado'         => $row['estado'],
+        'estado_label'   => isset($estadoLabel[$row['estado']]) ? $estadoLabel[$row['estado']] : $row['estado'],
+        'agendamiento'   => $row['fecha_agendamiento'] ? date('d/m/Y - H:i', strtotime($row['fecha_agendamiento'])) : null,
+        'equipo'         => $row['equipo_asignado']
+    );
 }
-
-// Si no hay casos, usar datos de ejemplo para la demo visual
-if (empty($casos)) {
-    $casos = [
-    [
-        'id' => 'PC-2024-001',
-        'fecha' => '15/03/2024',
-        'categoria' => 'Fallas Estructurales',
-        'subcategoria' => 'Fisuras en muros',
-        'ubicacion' => 'Depto 502, Torre A',
-        'estado' => 'pendiente',
-        'estado_label' => 'Pendiente',
-        'agendamiento' => null,
-        'equipo' => null
-    ],
-    [
-        'id' => 'PC-2024-002',
-        'fecha' => '18/03/2024',
-        'categoria' => 'Instalaciones',
-        'subcategoria' => 'Filtraciones de agua',
-        'ubicacion' => 'Depto 502, Torre A',
-        'estado' => 'aprobado',
-        'estado_label' => 'Aprobado',
-        'agendamiento' => null,
-        'equipo' => null
-    ],
-    [
-        'id' => 'PC-2024-003',
-        'fecha' => '22/03/2024',
-        'categoria' => 'Terminaciones',
-        'subcategoria' => 'Puertas descuadradas',
-        'ubicacion' => 'Depto 502, Torre A',
-        'estado' => 'agendado',
-        'estado_label' => 'Agendado',
-        'agendamiento' => '28/03/2024 - 10:00 AM',
-        'equipo' => 'Equipo Técnico A (Juan Pérez)'
-    ],
-    [
-        'id' => 'PC-2024-004',
-        'fecha' => '25/03/2024',
-        'categoria' => 'Instalaciones',
-        'subcategoria' => 'Cortocircuitos',
-        'ubicacion' => 'Estacionamiento N° 12',
-        'estado' => 'no_corresponde',
-        'estado_label' => 'No Corresponde',
-        'agendamiento' => null,
-        'equipo' => null
-    ],
-    [
-        'id' => 'PC-2024-005',
-        'fecha' => '28/03/2024',
-        'categoria' => 'Fallas Estructurales',
-        'subcategoria' => 'Humedad en cielos',
-        'ubicacion' => 'Bodega N° 8',
-        'estado' => 'resuelto',
-        'estado_label' => 'Resuelto',
-        'agendamiento' => '05/04/2024 - 15:00 PM',
-        'equipo' => 'Equipo Técnico B (María Soto)'
-    ],
-    [
-        'id' => 'PC-2024-006',
-        'fecha' => '02/04/2024',
-        'categoria' => 'Terminaciones',
-        'subcategoria' => 'Pisos flotantes levantados',
-        'ubicacion' => 'Depto 502, Torre A',
-        'estado' => 'en_proceso',
-        'estado_label' => 'En Proceso',
-        'agendamiento' => '10/04/2024 - 09:00 AM',
-        'equipo' => 'Equipo Técnico A (Juan Pérez)'
-    ],
-];
-} // fin if empty($casos)
 
 // Estadísticas
 $totalCasos = count($casos);

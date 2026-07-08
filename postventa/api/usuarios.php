@@ -352,6 +352,87 @@ switch ($action) {
         echo json_encode(['success' => true, 'token' => $_SESSION['api_csrf_token']]);
         break;
 
+    // ========== LISTAR USUARIOS (solo admin_sistema) ==========
+    case 'listar_usuarios':
+        if (!isset($_SESSION['usuario_id']) || $_SESSION['usuario_rol'] !== 'admin_sistema') {
+            http_response_code(403);
+            echo json_encode(['success' => false, 'message' => 'Acceso denegado']);
+            exit;
+        }
+        
+        $db = getDB();
+        $result = $db->query("SELECT id, rut, nombre, email, telefono, rol, activo, created_at FROM icentPventaUsuarios ORDER BY created_at DESC");
+        $usuarios = array();
+        while ($row = $result->fetch_assoc()) {
+            $usuarios[] = $row;
+        }
+        
+        echo json_encode(['success' => true, 'usuarios' => $usuarios]);
+        break;
+
+    // ========== ACTUALIZAR USUARIO (solo admin_sistema) ==========
+    case 'actualizar_usuario':
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            echo json_encode(['success' => false, 'message' => 'Método no permitido']);
+            exit;
+        }
+        if (!isset($_SESSION['usuario_id']) || $_SESSION['usuario_rol'] !== 'admin_sistema') {
+            http_response_code(403);
+            echo json_encode(['success' => false, 'message' => 'Acceso denegado']);
+            exit;
+        }
+        
+        $userId   = isset($_POST['id']) ? (int)$_POST['id'] : 0;
+        $email    = isset($_POST['email']) ? trim($_POST['email']) : '';
+        $telefono = isset($_POST['telefono']) ? trim($_POST['telefono']) : '';
+        $rol      = isset($_POST['rol']) ? $_POST['rol'] : '';
+        $activo   = isset($_POST['activo']) ? (int)$_POST['activo'] : 1;
+        
+        if ($userId <= 0) {
+            echo json_encode(['success' => false, 'message' => 'ID de usuario inválido']);
+            exit;
+        }
+        if (!in_array($rol, array('propietario', 'administrador_edificio'))) {
+            echo json_encode(['success' => false, 'message' => 'Rol no permitido. Solo propietario o administrador_edificio.']);
+            exit;
+        }
+        if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            echo json_encode(['success' => false, 'message' => 'Formato de correo inválido']);
+            exit;
+        }
+        
+        $db = getDB();
+        
+        // Verificar que no se esté modificando a otro admin_sistema
+        $check = $db->prepare("SELECT rol FROM icentPventaUsuarios WHERE id = ? LIMIT 1");
+        $check->bind_param('i', $userId);
+        $check->execute();
+        $target = $check->get_result()->fetch_assoc();
+        
+        if (!$target) {
+            echo json_encode(['success' => false, 'message' => 'Usuario no encontrado']);
+            exit;
+        }
+        
+        // Verificar email duplicado
+        $dup = $db->prepare("SELECT id FROM icentPventaUsuarios WHERE email = ? AND id != ? LIMIT 1");
+        $dup->bind_param('si', $email, $userId);
+        $dup->execute();
+        if ($dup->get_result()->num_rows > 0) {
+            echo json_encode(['success' => false, 'message' => 'El correo ya está en uso por otro usuario']);
+            exit;
+        }
+        
+        $stmt = $db->prepare("UPDATE icentPventaUsuarios SET email = ?, telefono = ?, rol = ?, activo = ? WHERE id = ?");
+        $stmt->bind_param('sssii', $email, $telefono, $rol, $activo, $userId);
+        
+        if ($stmt->execute()) {
+            echo json_encode(['success' => true, 'message' => 'Usuario actualizado correctamente']);
+        } else {
+            echo json_encode(['success' => false, 'message' => 'Error al actualizar: ' . $db->error]);
+        }
+        break;
+
     default:
         http_response_code(400);
         echo json_encode(['success' => false, 'message' => 'Acción no válida']);

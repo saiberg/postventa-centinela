@@ -185,16 +185,46 @@ $(document).ready(function() {
         if (!categoria) errors.push('Debe seleccionar una categoría');
         if (!subcategoria) errors.push('Debe seleccionar una subcategoría');
         
-        if (rol === 'propietario' && !$('#departamento').val()) {
-            errors.push('Debe seleccionar su departamento/bodega/estacionamiento');
-        }
-        if (rol === 'administrador' && !$('#area_comun').val()) {
-            errors.push('Debe seleccionar un área común');
+        // Determinar ubicación según rol
+        var ubicTipo = '';
+        var ubicValor = '';
+        if (rol === 'propietario') {
+            var depto = $('#departamento').val();
+            var estac = $('#estacionamiento').val();
+            var bodega = $('#bodega').val();
+            if (!depto && !estac && !bodega) {
+                errors.push('Debe seleccionar su departamento, estacionamiento o bodega');
+            } else {
+                ubicTipo = 'departamento';
+                ubicValor = $('#departamento option:selected').text();
+                if (estac) {
+                    ubicValor += ' | ' + $('#estacionamiento option:selected').text();
+                    if (!ubicTipo) ubicTipo = 'estacionamiento';
+                }
+                if (bodega) {
+                    ubicValor += ' | ' + $('#bodega option:selected').text();
+                }
+            }
+        } else if (rol === 'administrador') {
+            ubicTipo = 'area_comun';
+            ubicValor = $('#area_comun option:selected').text();
+            if (!$('#area_comun').val()) {
+                errors.push('Debe seleccionar un área común');
+            }
         }
         
-        // Validar al menos un día seleccionado
-        var diasSeleccionados = $('.day-check:checked').length;
-        if (diasSeleccionados === 0) {
+        // Recopilar días seleccionados
+        var dias = [];
+        $('.day-check:checked').each(function() {
+            var name = $(this).attr('name');
+            var match = name.match(/dias\[(\w+)\]/);
+            if (match) {
+                var dia = match[1];
+                var turno = $(this).val();
+                dias.push(dia.charAt(0).toUpperCase() + dia.slice(1) + ' ' + turno);
+            }
+        });
+        if (dias.length === 0) {
             errors.push('Debe seleccionar al menos un día disponible para visita');
         }
         
@@ -206,14 +236,50 @@ $(document).ready(function() {
             errorHtml += '</ul>';
             $('#formErrors').html('<div class="alert alert-danger"><i class="fas fa-exclamation-circle"></i> ' + errorHtml + '</div>').show();
             $('html, body').animate({scrollTop: $('#formErrors').offset().top - 100}, 300);
-        } else {
-            // Simulación de envío exitoso
-            $('#formErrors').html('<div class="alert alert-success"><i class="fas fa-check-circle"></i> ¡Solicitud enviada con éxito! Redirigiendo...</div>').show();
-            $('html, body').animate({scrollTop: 0}, 300);
-            setTimeout(function() {
-                window.location.href = 'dashboard.php?success=1';
-            }, 2000);
+            return;
         }
+        
+        // Deshabilitar botón para evitar doble envío
+        var $btn = $(this).find('button[type="submit"]');
+        $btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Enviando...');
+        
+        // Enviar a la API
+        $.ajax({
+            url: 'api/solicitudes.php?action=crear',
+            method: 'POST',
+            data: {
+                rut: $('#rut').val(),
+                nombre: $('#nombre').val(),
+                email: $('#email').val(),
+                telefono: $('#telefono').val(),
+                rol: rol,
+                ubicacion_tipo: ubicTipo,
+                ubicacion_valor: ubicValor,
+                categoria: categoria,
+                subcategoria: subcategoria,
+                detalle: $('#detalle').val(),
+                dias: dias.join(', ')
+            },
+            dataType: 'json',
+            success: function(response) {
+                if (response.success) {
+                    $('#formErrors').html('<div class="alert alert-success"><i class="fas fa-check-circle"></i> ¡Solicitud enviada con éxito! Redirigiendo...</div>').show();
+                    $('html, body').animate({scrollTop: 0}, 300);
+                    setTimeout(function() {
+                        window.location.href = response.redirect || 'dashboard.php?success=1';
+                    }, 1500);
+                } else {
+                    $('#formErrors').html('<div class="alert alert-danger"><i class="fas fa-exclamation-circle"></i> ' + response.message + '</div>').show();
+                    $btn.prop('disabled', false).html('<i class="fas fa-paper-plane"></i> Enviar Solicitud');
+                    $('html, body').animate({scrollTop: $('#formErrors').offset().top - 100}, 300);
+                }
+            },
+            error: function() {
+                $('#formErrors').html('<div class="alert alert-danger"><i class="fas fa-exclamation-circle"></i> Error de conexión. Intente nuevamente.</div>').show();
+                $btn.prop('disabled', false).html('<i class="fas fa-paper-plane"></i> Enviar Solicitud');
+                $('html, body').animate({scrollTop: $('#formErrors').offset().top - 100}, 300);
+            }
+        });
     });
     
 });

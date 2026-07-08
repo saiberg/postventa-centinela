@@ -4,66 +4,68 @@
  * Vista detallada del estado de solicitudes
  */
 require_once 'includes/config.php';
+require_once 'includes/api_helper.php';
 
 if (!isset($_SESSION['usuario_id'])) {
     header('Location: login.php');
     exit;
 }
 
-// Datos de ejemplo
-$solicitudes = [
-    [
-        'id' => 'PC-2024-001',
-        'fecha' => '15/03/2024',
-        'categoria' => 'Fallas Estructurales/Estéticas',
-        'subcategoria' => 'Fisuras en muros',
-        'ubicacion' => 'Depto 502, Torre A',
-        'estado' => 'pendiente',
-        'estado_label' => 'Pendiente de Revisión',
-        'estado_icon' => 'fa-clock',
-        'agendamiento' => null,
-        'equipo' => null,
-        'detalle' => 'Se observa una fisura de aproximadamente 30cm en el muro del living, cercana a la ventana.',
-        'evidencia' => 2,
-        'comentarios' => []
-    ],
-    [
-        'id' => 'PC-2024-003',
-        'fecha' => '22/03/2024',
-        'categoria' => 'Terminaciones',
-        'subcategoria' => 'Puertas descuadradas',
-        'ubicacion' => 'Depto 502, Torre A',
-        'estado' => 'agendado',
-        'estado_label' => 'Visita Agendada',
-        'estado_icon' => 'fa-calendar-check',
-        'agendamiento' => '28/03/2024 - 10:00 AM',
-        'equipo' => 'Equipo Técnico A - Juan Pérez',
-        'detalle' => 'La puerta del dormitorio principal no cierra correctamente, queda descuadrada.',
-        'evidencia' => 3,
-        'comentarios' => [
-            ['fecha' => '23/03/2024', 'autor' => 'Postventa Centinela', 'texto' => 'Su solicitud ha sido aprobada. Nos pondremos en contacto para coordinar la visita.']
-        ]
-    ],
-    [
-        'id' => 'PC-2024-005',
-        'fecha' => '28/03/2024',
-        'categoria' => 'Fallas Estructurales/Estéticas',
-        'subcategoria' => 'Humedad en cielos',
-        'ubicacion' => 'Bodega N° 8',
-        'estado' => 'resuelto',
-        'estado_label' => 'Resuelto',
-        'estado_icon' => 'fa-check-circle',
-        'agendamiento' => '05/04/2024 - 15:00 PM',
-        'equipo' => 'Equipo Técnico B - María Soto',
-        'detalle' => 'Mancha de humedad en el cielo de la bodega, parece provenir del piso superior.',
-        'evidencia' => 4,
-        'comentarios' => [
-            ['fecha' => '29/03/2024', 'autor' => 'Postventa Centinela', 'texto' => 'Caso aprobado. Se agenda visita para el 05/04.'],
-            ['fecha' => '06/04/2024', 'autor' => 'Técnico', 'texto' => 'Se detectó filtración de tubería del departamento superior. Reparación completada.'],
-            ['fecha' => '06/04/2024', 'autor' => 'Postventa Centinela', 'texto' => 'Caso resuelto. Se realizó reparación de tubería y sellado de cielo.'],
-        ]
-    ],
-];
+// Obtener solicitudes desde la API
+$apiResponse = apiCall('solicitudes.php?action=mis_solicitudes', array());
+$solicitudesRaw = ($apiResponse['success'] && isset($apiResponse['solicitudes'])) ? $apiResponse['solicitudes'] : array();
+
+// Formatear para la vista
+$estadoLabels = array(
+    'pendiente'      => 'Pendiente de Revisión',
+    'aprobado'       => 'Aprobado',
+    'no_corresponde' => 'No Corresponde',
+    'agendado'       => 'Visita Agendada',
+    'en_proceso'     => 'En Proceso',
+    'resuelto'       => 'Resuelto'
+);
+$estadoIcons = array(
+    'pendiente'      => 'fa-clock',
+    'aprobado'       => 'fa-check',
+    'no_corresponde' => 'fa-times-circle',
+    'agendado'       => 'fa-calendar-check',
+    'en_proceso'     => 'fa-spinner',
+    'resuelto'       => 'fa-check-circle'
+);
+
+$solicitudes = array();
+foreach ($solicitudesRaw as $row) {
+    // Obtener seguimiento para esta solicitud
+    $detalleResp = apiCall('solicitudes.php?action=detalle&id=' . $row['id'], array());
+    $comentarios = array();
+    if ($detalleResp['success'] && isset($detalleResp['seguimiento'])) {
+        foreach ($detalleResp['seguimiento'] as $seg) {
+            $tipoLabels = array('sistema' => 'Postventa Centinela', 'admin' => 'Admin Postventa', 'cliente' => 'Cliente', 'tecnico' => 'Técnico');
+            $comentarios[] = array(
+                'fecha' => date('d/m/Y', strtotime($seg['created_at'])),
+                'autor' => isset($tipoLabels[$seg['tipo']]) ? $tipoLabels[$seg['tipo']] : $seg['tipo'],
+                'texto' => $seg['comentario']
+            );
+        }
+    }
+    
+    $solicitudes[] = array(
+        'id'             => 'PC-' . date('Y', strtotime($row['created_at'])) . '-' . str_pad($row['id'], 3, '0', STR_PAD_LEFT),
+        'id_num'         => $row['id'],
+        'fecha'          => date('d/m/Y', strtotime($row['created_at'])),
+        'categoria'      => $row['categoria'],
+        'subcategoria'   => $row['subcategoria'],
+        'ubicacion'      => $row['ubicacion_valor'],
+        'estado'         => $row['estado'],
+        'estado_label'   => isset($estadoLabels[$row['estado']]) ? $estadoLabels[$row['estado']] : $row['estado'],
+        'estado_icon'    => isset($estadoIcons[$row['estado']]) ? $estadoIcons[$row['estado']] : 'fa-clock',
+        'agendamiento'   => $row['fecha_agendamiento'] ? date('d/m/Y - H:i', strtotime($row['fecha_agendamiento'])) : null,
+        'equipo'         => $row['equipo_asignado'],
+        'detalle'        => $row['detalle'],
+        'evidencia'      => 0,
+        'comentarios'    => $comentarios
+    );
+}
 
 include 'includes/header.php';
 ?>
