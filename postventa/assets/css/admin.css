@@ -337,3 +337,87 @@
         max-height: 100vh;
     }
 }
+
+/* ============================================
+   TOASTS Y DIÁLOGO DE CONFIRMACIÓN
+   ============================================ */
+
+/* Toast notifications */
+.app-toast {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 9999;
+    padding: 14px 20px;
+    border-radius: var(--radius-md);
+    color: #fff;
+    font-size: 0.88rem;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    box-shadow: var(--shadow-lg);
+    transform: translateX(120%);
+    transition: transform 0.3s ease;
+    max-width: 420px;
+    line-height: 1.4;
+}
+.app-toast.show { transform: translateX(0); }
+.app-toast i { font-size: 1.1rem; flex-shrink: 0; }
+
+.app-toast-success { background: #28a745; }
+.app-toast-error   { background: #dc3545; }
+.app-toast-info    { background: #17a2b8; }
+.app-toast-warning { background: #e67e22; }
+
+/* Diálogo de confirmación */
+.app-confirm-overlay {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.5);
+    z-index: 9998;
+    opacity: 0;
+    transition: opacity 0.25s ease;
+}
+.app-confirm-overlay.show { opacity: 1; }
+
+.app-confirm-dialog {
+    position: fixed;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%) scale(0.9);
+    z-index: 9999;
+    background: #fff;
+    border-radius: var(--radius-lg);
+    padding: 32px;
+    box-shadow: var(--shadow-xl);
+    text-align: center;
+    max-width: 420px;
+    width: 90%;
+    opacity: 0;
+    transition: all 0.25s ease;
+}
+.app-confirm-dialog.show {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+}
+
+.app-confirm-icon {
+    font-size: 3rem;
+    color: var(--color-primary);
+    margin-bottom: 16px;
+}
+.app-confirm-dialog p {
+    font-size: 0.95rem;
+    color: var(--color-gray-800);
+    margin-bottom: 24px;
+    line-height: 1.5;
+}
+.app-confirm-dialog small {
+    color: var(--color-gray-600);
+    font-size: 0.82rem;
+}
+.app-confirm-actions {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+}

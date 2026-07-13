@@ -13,6 +13,37 @@
  */
 
 require_once __DIR__ . '/../includes/config.php';
+require_once __DIR__ . '/../includes/logger.php';
+
+// ==================== MANEJO GLOBAL DE ERRORES ====================
+set_error_handler(function($severity, $message, $file, $line) {
+    $tipos = array(
+        E_ERROR => 'E_ERROR', E_WARNING => 'E_WARNING', E_PARSE => 'E_PARSE',
+        E_NOTICE => 'E_NOTICE', E_CORE_ERROR => 'E_CORE_ERROR', E_COMPILE_ERROR => 'E_COMPILE_ERROR',
+        E_USER_ERROR => 'E_USER_ERROR', E_USER_WARNING => 'E_USER_WARNING',
+        E_RECOVERABLE_ERROR => 'E_RECOVERABLE_ERROR', E_DEPRECATED => 'E_DEPRECATED',
+    );
+    $tipo = isset($tipos[$severity]) ? $tipos[$severity] : "E_$severity";
+    logger('ERROR', "PHP $tipo: $message", ['file' => $file, 'line' => $line]);
+    return in_array($severity, array(E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR, E_USER_ERROR, E_RECOVERABLE_ERROR)) ? false : true;
+});
+
+set_exception_handler(function($exception) {
+    logger('ERROR', 'Excepción: ' . $exception->getMessage(), ['file' => $exception->getFile(), 'line' => $exception->getLine(), 'trace' => $exception->getTraceAsString()]);
+    http_response_code(500);
+    echo json_encode(['success' => false, 'message' => 'Error interno del servidor']);
+});
+
+register_shutdown_function(function() {
+    $error = error_get_last();
+    if ($error && in_array($error['type'], array(E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR, E_RECOVERABLE_ERROR))) {
+        logger('ERROR', 'Error fatal: ' . $error['message'], ['file' => $error['file'], 'line' => $error['line']]);
+        if (!headers_sent()) { http_response_code(500); echo json_encode(['success' => false, 'message' => 'Error interno del servidor']); }
+    }
+});
+
+ini_set('display_errors', '0');
+ini_set('display_startup_errors', '0');
 
 header('Content-Type: application/json; charset=utf-8');
 header('X-Content-Type-Options: nosniff');

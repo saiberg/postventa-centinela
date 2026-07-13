@@ -11,6 +11,15 @@ define('DB_PASS', 'charly2000');
 define('DB_NAME', 'postventa');
 define('DB_CHARSET', 'utf8');
 
+// Configuración SIGRO (para creación de casos al aprobar solicitudes)
+define('SIGRO_OBRA_ID', '223');
+define('SIGRO_INMOBILIARIA_ID', '45');
+define('SIGRO_CATEGORIA_ID', '4471');
+define('SIGRO_CATEGORIA_DETALLE_ID', '8197');
+define('SIGRO_INMOBILIARIA_USUARIO_ID', '212');
+define('SIGRO_USUARIO_ID', '1');
+define('SIGRO_ARCHIVOS_PATH', __DIR__ . '/../../../postventa/archivos/casos/');
+
 // Conexión a la base de datos
 function getDB() {
     static $db = null;

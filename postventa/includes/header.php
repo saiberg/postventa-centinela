@@ -38,7 +38,7 @@ $currentPage = basename($_SERVER['PHP_SELF']);
     <?php if ($currentPage == 'login.php' || $currentPage == 'registro.php' || $currentPage == 'recuperar.php'): ?>
     <link rel="stylesheet" href="<?php echo ASSETS_URL; ?>css/auth.css">
     <?php endif; ?>
-    <?php if ($currentPage == 'dashboard.php' || $currentPage == 'nueva-solicitud.php' || $currentPage == 'mis-solicitudes.php'): ?>
+    <?php if ($currentPage == 'dashboard.php' || $currentPage == 'dashboard-preview.php' || $currentPage == 'dashboard-preview2.php' || $currentPage == 'dashboard-preview3.php' || $currentPage == 'dashboard-preview4.php' || $currentPage == 'nueva-solicitud.php' || $currentPage == 'mis-solicitudes.php'): ?>
     <link rel="stylesheet" href="<?php echo ASSETS_URL; ?>css/dashboard.css">
     <?php endif; ?>
     <?php if ($currentPage == 'nueva-solicitud.php'): ?>
@@ -69,12 +69,16 @@ $currentPage = basename($_SERVER['PHP_SELF']);
                     <li class="<?php echo $currentPage == 'dashboard.php' ? 'active' : ''; ?>">
                         <a href="dashboard.php"><i class="fas fa-tachometer-alt"></i> Mi Panel</a>
                     </li>
+                    <?php if (!$isAdminSistema): ?>
                     <li class="<?php echo $currentPage == 'nueva-solicitud.php' ? 'active' : ''; ?>">
                         <a href="nueva-solicitud.php"><i class="fas fa-plus-circle"></i> Nueva Solicitud</a>
                     </li>
+                    <?php endif; ?>
+                    <?php if (!$isAdminSistema): ?>
                     <li class="<?php echo $currentPage == 'mis-solicitudes.php' ? 'active' : ''; ?>">
                         <a href="mis-solicitudes.php"><i class="fas fa-list-alt"></i> Mis Solicitudes</a>
                     </li>
+                    <?php endif; ?>
                     <?php if ($isAdmin): ?>
                     <li class="<?php echo $currentPage == 'admin.php' ? 'active' : ''; ?>">
                         <a href="admin.php"><i class="fas fa-cogs"></i> Administración</a>

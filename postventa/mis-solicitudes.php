@@ -11,9 +11,61 @@ if (!isset($_SESSION['usuario_id'])) {
     exit;
 }
 
+// El admin_sistema no tiene solicitudes propias
+if (isset($_SESSION['usuario_rol']) && $_SESSION['usuario_rol'] === 'admin_sistema') {
+    header('Location: dashboard.php');
+    exit;
+}
+
 // Obtener solicitudes desde la API
 $apiResponse = apiCall('solicitudes.php?action=mis_solicitudes', array());
 $solicitudesRaw = ($apiResponse['success'] && isset($apiResponse['solicitudes'])) ? $apiResponse['solicitudes'] : array();
+
+// ========== FILTROS ==========
+$filtroEstado = isset($_GET['estado']) ? trim($_GET['estado']) : '';
+$filtroBuscar = isset($_GET['buscar']) ? trim($_GET['buscar']) : '';
+$filtroFechaDesde = isset($_GET['fecha_desde']) ? trim($_GET['fecha_desde']) : '';
+$filtroFechaHasta = isset($_GET['fecha_hasta']) ? trim($_GET['fecha_hasta']) : '';
+
+// Aplicar filtros sobre los datos crudos
+$solicitudesFiltradas = $solicitudesRaw;
+
+if ($filtroEstado !== '') {
+    $solicitudesFiltradas = array_filter($solicitudesFiltradas, function($row) use ($filtroEstado) {
+        return $row['estado'] === $filtroEstado;
+    });
+}
+
+if ($filtroBuscar !== '') {
+    $buscarLower = strtolower($filtroBuscar);
+    $solicitudesFiltradas = array_filter($solicitudesFiltradas, function($row) use ($buscarLower) {
+        $texto = strtolower($row['categoria'] . ' ' . $row['subcategoria'] . ' ' . $row['ubicacion_valor'] . ' ' . $row['detalle']);
+        return strpos($texto, $buscarLower) !== false;
+    });
+}
+
+if ($filtroFechaDesde !== '') {
+    $solicitudesFiltradas = array_filter($solicitudesFiltradas, function($row) use ($filtroFechaDesde) {
+        return date('Y-m-d', strtotime($row['created_at'])) >= $filtroFechaDesde;
+    });
+}
+
+if ($filtroFechaHasta !== '') {
+    $solicitudesFiltradas = array_filter($solicitudesFiltradas, function($row) use ($filtroFechaHasta) {
+        return date('Y-m-d', strtotime($row['created_at'])) <= $filtroFechaHasta;
+    });
+}
+
+// Reindexar array después de filtros
+$solicitudesFiltradas = array_values($solicitudesFiltradas);
+
+// ========== PAGINACIÓN ==========
+$porPagina = 5;
+$totalFiltrados = count($solicitudesFiltradas);
+$totalPaginas = ceil($totalFiltrados / $porPagina);
+$paginaActual = isset($_GET['pagina']) ? max(1, min((int)$_GET['pagina'], max(1, $totalPaginas))) : 1;
+$offset = ($paginaActual - 1) * $porPagina;
+$solicitudesPaginadas = array_slice($solicitudesFiltradas, $offset, $porPagina);
 
 // Formatear para la vista
 $estadoLabels = array(
@@ -34,7 +86,7 @@ $estadoIcons = array(
 );
 
 $solicitudes = array();
-foreach ($solicitudesRaw as $row) {
+foreach ($solicitudesPaginadas as $row) {
     // Obtener seguimiento para esta solicitud
     $detalleResp = apiCall('solicitudes.php?action=detalle&id=' . $row['id'], array());
     $comentarios = array();
@@ -281,14 +333,71 @@ include 'includes/header.php';
         <p class="text-muted">Seguimiento detallado de cada uno de sus requerimientos.</p>
     </div>
     
-    <div class="mb-3">
-        <a href="dashboard.php" class="btn btn-secondary btn-sm">
-            <i class="fas fa-arrow-left"></i> Volver al Panel
-        </a>
-        <a href="nueva-solicitud.php" class="btn btn-primary btn-sm">
-            <i class="fas fa-plus-circle"></i> Nueva Solicitud
+    <div class="mb-3" style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px;">
+        <div>
+            <a href="dashboard.php" class="btn btn-secondary btn-sm">
+                <i class="fas fa-arrow-left"></i> Volver al Panel
+            </a>
+            <a href="nueva-solicitud.php" class="btn btn-primary btn-sm">
+                <i class="fas fa-plus-circle"></i> Nueva Solicitud
+            </a>
+        </div>
+        <span class="text-muted" style="font-size:0.82rem;">
+            Mostrando <?php echo count($solicitudesPaginadas); ?> de <?php echo $totalFiltrados; ?> solicitudes
+        </span>
+    </div>
+    
+    <!-- Filtros -->
+    <div class="card" style="margin-bottom: 24px;">
+        <div class="card-body" style="padding: 16px 20px;">
+            <form method="GET" action="mis-solicitudes.php" id="filtrosForm">
+                <div style="display:flex; align-items:flex-end; flex-wrap:wrap; gap:12px;">
+                    <div style="flex:1; min-width:140px;">
+                        <label for="filtroEstado" style="font-size:0.75rem; font-weight:600; color:var(--color-gray-600); display:block; margin-bottom:4px;">Estado</label>
+                        <select name="estado" id="filtroEstado" class="form-control form-control-sm" style="width:100%;" onchange="this.form.submit()">
+                            <option value="">Todos los estados</option>
+                            <option value="pendiente" <?php echo $filtroEstado === 'pendiente' ? 'selected' : ''; ?>>Pendiente</option>
+                            <option value="aprobado" <?php echo $filtroEstado === 'aprobado' ? 'selected' : ''; ?>>Aprobado</option>
+                            <option value="agendado" <?php echo $filtroEstado === 'agendado' ? 'selected' : ''; ?>>Agendado</option>
+                            <option value="en_proceso" <?php echo $filtroEstado === 'en_proceso' ? 'selected' : ''; ?>>En Proceso</option>
+                            <option value="resuelto" <?php echo $filtroEstado === 'resuelto' ? 'selected' : ''; ?>>Resuelto</option>
+                            <option value="no_corresponde" <?php echo $filtroEstado === 'no_corresponde' ? 'selected' : ''; ?>>No Corresponde</option>
+                        </select>
+                    </div>
+                    <div style="flex:1.5; min-width:180px;">
+                        <label for="filtroBuscar" style="font-size:0.75rem; font-weight:600; color:var(--color-gray-600); display:block; margin-bottom:4px;">Buscar</label>
+                        <input type="text" name="buscar" id="filtroBuscar" class="form-control form-control-sm" style="width:100%;" placeholder="Categoría, ubicación, detalle..." value="<?php echo htmlspecialchars($filtroBuscar); ?>">
+                    </div>
+                    <div style="flex:1; min-width:130px;">
+                        <label for="filtroFechaDesde" style="font-size:0.75rem; font-weight:600; color:var(--color-gray-600); display:block; margin-bottom:4px;">Desde</label>
+                        <input type="date" name="fecha_desde" id="filtroFechaDesde" class="form-control form-control-sm" style="width:100%;" value="<?php echo htmlspecialchars($filtroFechaDesde); ?>">
+                    </div>
+                    <div style="flex:1; min-width:130px;">
+                        <label for="filtroFechaHasta" style="font-size:0.75rem; font-weight:600; color:var(--color-gray-600); display:block; margin-bottom:4px;">Hasta</label>
+                        <input type="date" name="fecha_hasta" id="filtroFechaHasta" class="form-control form-control-sm" style="width:100%;" value="<?php echo htmlspecialchars($filtroFechaHasta); ?>">
+                    </div>
+                    <div style="display:flex; gap:6px;">
+                        <button type="submit" class="btn btn-primary btn-sm">
+                            <i class="fas fa-filter"></i> Filtrar
+                        </button>
+                        <a href="mis-solicitudes.php" class="btn btn-secondary btn-sm" title="Limpiar filtros">
+                            <i class="fas fa-times"></i>
+                        </a>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <?php if (empty($solicitudesPaginadas)): ?>
+    <div class="card" style="text-align:center; padding: 48px 20px;">
+        <i class="fas fa-search" style="font-size:2.5rem; color:var(--color-gray-400); display:block; margin-bottom:12px;"></i>
+        <p style="color:var(--color-gray-600); font-size:0.95rem;">No se encontraron solicitudes con los filtros aplicados.</p>
+        <a href="mis-solicitudes.php" class="btn btn-secondary btn-sm" style="margin-top:8px;">
+            <i class="fas fa-times"></i> Limpiar filtros
         </a>
     </div>
+    <?php endif; ?>
     
     <div class="timeline">
         <?php foreach ($solicitudes as $sol): 
@@ -387,6 +496,53 @@ include 'includes/header.php';
         </div>
         <?php endforeach; ?>
     </div>
+    
+    <!-- Paginación -->
+    <?php if ($totalPaginas > 1): 
+        // Construir query string base con filtros actuales
+        $queryParams = $_GET;
+        unset($queryParams['pagina']);
+        $baseQuery = http_build_query($queryParams);
+        $baseQuery = $baseQuery ? '?' . $baseQuery . '&' : '?';
+    ?>
+    <div style="display:flex; justify-content:center; margin-top:24px;">
+        <ul class="pagination">
+            <?php if ($paginaActual > 1): ?>
+            <li class="page-item">
+                <a class="page-link" href="mis-solicitudes.php<?php echo $baseQuery; ?>pagina=<?php echo $paginaActual - 1; ?>">
+                    <i class="fas fa-chevron-left"></i>
+                </a>
+            </li>
+            <?php else: ?>
+            <li class="page-item disabled"><span class="page-link"><i class="fas fa-chevron-left"></i></span></li>
+            <?php endif; ?>
+            
+            <?php
+            // Mostrar páginas con elipsis
+            $rango = 2;
+            for ($p = 1; $p <= $totalPaginas; $p++):
+                if ($p == 1 || $p == $totalPaginas || ($p >= $paginaActual - $rango && $p <= $paginaActual + $rango)):
+            ?>
+            <li class="page-item <?php echo $p == $paginaActual ? 'active' : ''; ?>">
+                <a class="page-link" href="mis-solicitudes.php<?php echo $baseQuery; ?>pagina=<?php echo $p; ?>"><?php echo $p; ?></a>
+            </li>
+            <?php elseif ($p == $paginaActual - $rango - 1 || $p == $paginaActual + $rango + 1): ?>
+            <li class="page-item disabled"><span class="page-link">...</span></li>
+            <?php endif;
+            endfor; ?>
+            
+            <?php if ($paginaActual < $totalPaginas): ?>
+            <li class="page-item">
+                <a class="page-link" href="mis-solicitudes.php<?php echo $baseQuery; ?>pagina=<?php echo $paginaActual + 1; ?>">
+                    <i class="fas fa-chevron-right"></i>
+                </a>
+            </li>
+            <?php else: ?>
+            <li class="page-item disabled"><span class="page-link"><i class="fas fa-chevron-right"></i></span></li>
+            <?php endif; ?>
+        </ul>
+    </div>
+    <?php endif; ?>
     
 </div>
 

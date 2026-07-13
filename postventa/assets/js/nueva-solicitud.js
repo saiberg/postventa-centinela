@@ -75,7 +75,7 @@ $(document).ready(function() {
     var dropZone = $('#dropZone');
     var fileInput = $('#fileInput');
     var fileList = $('#fileList');
-    var uploadedFiles = [];
+    var uploadedFiles = [];  // Array global de archivos seleccionados
     
     // Prevenir comportamiento default
     ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(function(eventName) {
@@ -100,8 +100,7 @@ $(document).ready(function() {
     
     // Manejar drop
     dropZone[0].addEventListener('drop', function(e) {
-        var files = e.dataTransfer.files;
-        handleFiles(files);
+        handleFiles(e.dataTransfer.files);
     });
     
     // Click en zona de drop
@@ -111,6 +110,7 @@ $(document).ready(function() {
     
     fileInput.on('change', function() {
         handleFiles(this.files);
+        this.value = '';  // Reset para permitir re-seleccionar el mismo archivo
     });
     
     function handleFiles(files) {
@@ -243,27 +243,37 @@ $(document).ready(function() {
         var $btn = $(this).find('button[type="submit"]');
         $btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Enviando...');
         
+        // Construir FormData para enviar archivos y datos
+        var formData = new FormData();
+        formData.append('rut', $('#rut').val());
+        formData.append('nombre', $('#nombre').val());
+        formData.append('email', $('#email').val());
+        formData.append('telefono', $('#telefono').val());
+        formData.append('rol', rol);
+        formData.append('ubicacion_tipo', ubicTipo);
+        formData.append('ubicacion_valor', ubicValor);
+        formData.append('categoria', categoria);
+        formData.append('subcategoria', subcategoria);
+        formData.append('detalle', $('#detalle').val());
+        formData.append('dias', dias.join(', '));
+        
+        // Adjuntar archivos desde el array global
+        for (var i = 0; i < uploadedFiles.length; i++) {
+            formData.append('archivos[]', uploadedFiles[i]);
+        }
+        
         // Enviar a la API
         $.ajax({
             url: 'api/solicitudes.php?action=crear',
             method: 'POST',
-            data: {
-                rut: $('#rut').val(),
-                nombre: $('#nombre').val(),
-                email: $('#email').val(),
-                telefono: $('#telefono').val(),
-                rol: rol,
-                ubicacion_tipo: ubicTipo,
-                ubicacion_valor: ubicValor,
-                categoria: categoria,
-                subcategoria: subcategoria,
-                detalle: $('#detalle').val(),
-                dias: dias.join(', ')
-            },
+            data: formData,
+            processData: false,
+            contentType: false,
             dataType: 'json',
             success: function(response) {
                 if (response.success) {
-                    $('#formErrors').html('<div class="alert alert-success"><i class="fas fa-check-circle"></i> ¡Solicitud enviada con éxito! Redirigiendo...</div>').show();
+                    var msg = response.message || '¡Solicitud enviada con éxito!';
+                    $('#formErrors').html('<div class="alert alert-success"><i class="fas fa-check-circle"></i> ' + msg + ' Redirigiendo...</div>').show();
                     $('html, body').animate({scrollTop: 0}, 300);
                     setTimeout(function() {
                         window.location.href = response.redirect || 'dashboard.php?success=1';

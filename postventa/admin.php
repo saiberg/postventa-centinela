@@ -14,10 +14,23 @@ if (!isset($_SESSION['usuario_id']) || !isset($_SESSION['es_admin']) || $_SESSIO
 // Obtener solicitudes de la BD
 $solicitudes = [];
 $db = getDB();
+
+// Paginación
+$porPagina = 10;
+$paginaActual = isset($_GET['pagina']) ? max(1, (int)$_GET['pagina']) : 1;
+$offset = ($paginaActual - 1) * $porPagina;
+
+// Contar total
+$totalResult = $db->query("SELECT COUNT(*) as total FROM icentPventaSolicitudes");
+$totalRow = $totalResult->fetch_assoc();
+$totalSolicitudes = $totalRow['total'];
+$totalPaginas = ceil($totalSolicitudes / $porPagina);
+
 $result = $db->query("SELECT s.id, s.created_at, s.rut, s.nombre, s.email, s.telefono, s.rol_solicitante, 
                              s.ubicacion_valor, s.categoria, s.subcategoria, s.estado, s.detalle, s.dias_disponibles
                       FROM icentPventaSolicitudes s 
-                      ORDER BY s.created_at DESC");
+                      ORDER BY s.created_at DESC
+                      LIMIT $porPagina OFFSET $offset");
 
 while ($row = $result->fetch_assoc()) {
     $solicitudes[] = [
@@ -305,14 +318,23 @@ include 'includes/header.php';
                 </div>
                 
                 <!-- Paginación -->
+                <?php if ($totalPaginas > 1): ?>
                 <div style="padding: 16px 24px;">
                     <ul class="pagination">
-                        <li class="page-item disabled"><span class="page-link"><i class="fas fa-chevron-left"></i></span></li>
-                        <li class="page-item active"><span class="page-link">1</span></li>
-                        <li class="page-item"><span class="page-link">2</span></li>
-                        <li class="page-item"><span class="page-link"><i class="fas fa-chevron-right"></i></span></li>
+                        <li class="page-item <?php echo $paginaActual <= 1 ? 'disabled' : ''; ?>">
+                            <a class="page-link" href="?pagina=<?php echo $paginaActual - 1; ?>"><i class="fas fa-chevron-left"></i></a>
+                        </li>
+                        <?php for ($p = 1; $p <= $totalPaginas; $p++): ?>
+                        <li class="page-item <?php echo $p == $paginaActual ? 'active' : ''; ?>">
+                            <a class="page-link" href="?pagina=<?php echo $p; ?>"><?php echo $p; ?></a>
+                        </li>
+                        <?php endfor; ?>
+                        <li class="page-item <?php echo $paginaActual >= $totalPaginas ? 'disabled' : ''; ?>">
+                            <a class="page-link" href="?pagina=<?php echo $paginaActual + 1; ?>"><i class="fas fa-chevron-right"></i></a>
+                        </li>
                     </ul>
                 </div>
+                <?php endif; ?>
             </div>
         </div>
         

@@ -1,7 +1,8 @@
 <?php
 /**
- * Dashboard del Cliente - Postventa Centinela
- * Muestra el panel principal con estadísticas y casos del cliente
+ * Dashboard Preview - Postventa Centinela
+ * Versión de prueba con imágenes corporativas integradas en el diseño.
+ * Accesible en: dashboard-preview.php
  */
 require_once 'includes/config.php';
 require_once 'includes/api_helper.php';
@@ -25,14 +26,12 @@ $estadoLabel = array(
 );
 
 if ($isAdminSistema) {
-    // Admin sistema: obtener TODAS las solicitudes del sistema
     $apiResponse = apiCall('solicitudes.php?action=todas', array());
     $solicitudesRaw = ($apiResponse['success'] && isset($apiResponse['solicitudes'])) ? $apiResponse['solicitudes'] : array();
     $globalStats = ($apiResponse['success'] && isset($apiResponse['stats'])) ? $apiResponse['stats'] : array(
         'total' => 0, 'pendientes' => 0, 'en_proceso' => 0, 'resueltos' => 0, 'no_corresponde' => 0
     );
 } else {
-    // Usuario normal: obtener solo sus solicitudes
     $apiResponse = apiCall('solicitudes.php?action=mis_solicitudes', array());
     $solicitudesRaw = ($apiResponse['success'] && isset($apiResponse['solicitudes'])) ? $apiResponse['solicitudes'] : array();
 }
@@ -50,7 +49,6 @@ foreach ($solicitudesRaw as $row) {
         'estado_label'   => isset($estadoLabel[$row['estado']]) ? $estadoLabel[$row['estado']] : $row['estado'],
         'agendamiento'   => isset($row['fecha_agendamiento']) && $row['fecha_agendamiento'] ? date('d/m/Y - H:i', strtotime($row['fecha_agendamiento'])) : null,
         'equipo'         => isset($row['equipo_asignado']) ? $row['equipo_asignado'] : null,
-        // Campos extra para vista admin
         'rut'            => isset($row['rut']) ? $row['rut'] : '',
         'nombre_solic'   => isset($row['nombre']) ? $row['nombre'] : '',
         'email_solic'    => isset($row['email']) ? $row['email'] : '',
@@ -59,7 +57,6 @@ foreach ($solicitudesRaw as $row) {
     );
 }
 
-// Estadísticas
 if ($isAdminSistema) {
     $totalCasos     = (int)$globalStats['total'];
     $pendientes     = (int)$globalStats['pendientes'];
@@ -77,8 +74,107 @@ if ($isAdminSistema) {
 include 'includes/header.php';
 ?>
 
+<style>
+/* ============================================
+   LAYOUT CON GALERÍA LATERAL - Diseño Preview
+   ============================================ */
+
+/* Layout principal: contenido + sidebar de imágenes */
+.dashboard-layout {
+    display: flex;
+    gap: 24px;
+    align-items: flex-start;
+}
+
+.dashboard-main {
+    flex: 1;
+    /* Permitir que el contenido use todo el ancho disponible */
+}
+
+/* Sidebar con imágenes de edificios */
+.dashboard-sidebar {
+    width: 220px;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    position: sticky;
+    top: 100px;
+}
+
+.sidebar-image-card {
+    background: var(--color-white);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    box-shadow: var(--shadow-sm);
+    border: 1px solid var(--color-gray-200);
+    transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.sidebar-image-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+}
+
+.sidebar-image-card img {
+    width: 100%;
+    height: auto;
+    display: block;
+    aspect-ratio: 2 / 3;
+    object-fit: cover;
+}
+
+.sidebar-image-card .sidebar-caption {
+    padding: 8px 12px;
+    font-size: 0.72rem;
+    color: var(--color-gray-600);
+    text-align: center;
+    font-weight: 500;
+    letter-spacing: 0.2px;
+}
+
+/* Responsive: sidebar se mueve abajo en pantallas pequeñas */
+@media (max-width: 1100px) {
+    .dashboard-layout {
+        flex-direction: column;
+    }
+    
+    .dashboard-sidebar {
+        width: 100%;
+        flex-direction: row;
+        gap: 12px;
+        position: static;
+        overflow-x: auto;
+        padding-bottom: 4px;
+    }
+    
+    .sidebar-image-card {
+        min-width: 160px;
+        flex-shrink: 0;
+    }
+    
+    .sidebar-image-card img {
+        aspect-ratio: 3 / 4;
+    }
+}
+
+@media (max-width: 768px) {
+    .dashboard-sidebar {
+        display: none; /* Ocultar en móviles para no robar espacio */
+    }
+}
+</style>
+
 <div class="dashboard-page">
     <div class="dashboard-container">
+        
+        <!-- ============================================
+             LAYOUT: CONTENIDO PRINCIPAL + SIDEBAR IMÁGENES
+             ============================================ -->
+        <div class="dashboard-layout">
+            
+            <!-- CONTENIDO PRINCIPAL -->
+            <div class="dashboard-main">
         
         <!-- Cabecera -->
         <div class="dashboard-header">
@@ -91,7 +187,7 @@ include 'includes/header.php';
             <?php endif; ?>
         </div>
         
-        <!-- Mensaje de éxito (si viene de crear solicitud) -->
+        <!-- Mensaje de éxito -->
         <?php if (isset($_GET['success'])): ?>
         <div class="alert alert-success">
             <i class="fas fa-check-circle"></i> ¡Tu solicitud ha sido ingresada exitosamente! Te notificaremos cuando sea revisada.
@@ -267,11 +363,29 @@ include 'includes/header.php';
             </div>
         </div>
         
+            </div><!-- /dashboard-main -->
+            
+            <!-- SIDEBAR: Galería de Edificios -->
+            <aside class="dashboard-sidebar">
+                <div class="sidebar-image-card">
+                    <img src="<?php echo IMG_URL; ?>centinela1.png" alt="Edificio Centinela 1" loading="lazy">
+                </div>
+                <div class="sidebar-image-card">
+                    <img src="<?php echo IMG_URL; ?>centinela2.png" alt="Edificio Centinela 2" loading="lazy">
+                </div>
+                <div class="sidebar-image-card">
+                    <img src="<?php echo IMG_URL; ?>centinela3.png" alt="Edificio Centinela 3" loading="lazy">
+                </div>
+            </aside>
+            
+        </div><!-- /dashboard-layout -->
+        
     </div>
 </div>
 
 <script>
 // Filtros de tabla
+// ============================================
 $(document).ready(function() {
     $('#filterEstado').on('change', function() {
         var estado = $(this).val();

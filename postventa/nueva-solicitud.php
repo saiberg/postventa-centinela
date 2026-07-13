@@ -12,6 +12,12 @@ if (!isset($_SESSION['usuario_id'])) {
     exit;
 }
 
+// El admin_sistema no puede generar solicitudes
+if (isset($_SESSION['usuario_rol']) && $_SESSION['usuario_rol'] === 'admin_sistema') {
+    header('Location: dashboard.php');
+    exit;
+}
+
 // Obtener datos del usuario a través de la API
 $apiResponse = apiCall('usuarios.php?action=perfil', array());
 $usuario = ($apiResponse['success'] && isset($apiResponse['user'])) ? $apiResponse['user'] : null;
