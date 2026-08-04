@@ -6,6 +6,7 @@
 
 require_once __DIR__ . '/../includes/config.php';
 require_once __DIR__ . '/../includes/logger.php';
+require_once __DIR__ . '/../includes/email_helper.php';
 
 // ==================== MANEJO GLOBAL DE ERRORES ====================
 // Capturar TODOS los errores y excepciones para registrarlos en el LOG
@@ -186,11 +187,15 @@ switch ($action) {
         $subcategoria = isset($_POST['subcategoria']) ? $_POST['subcategoria'] : '';
         $detalle     = isset($_POST['detalle']) ? trim($_POST['detalle']) : '';
         $dias        = isset($_POST['dias']) ? $_POST['dias'] : '';
+        $obraId      = isset($_POST['obra_id']) ? (int)$_POST['obra_id'] : 0;
+        $edificioId  = isset($_POST['edificio_id']) ? (int)$_POST['edificio_id'] : 0;
+        $pisoId      = isset($_POST['piso_id']) ? (int)$_POST['piso_id'] : 0;
+        $deptoId     = isset($_POST['departamento_id']) ? (int)$_POST['departamento_id'] : 0;
         
         // Validaciones
         $errors = array();
         if (empty($categoria)) $errors[] = 'Debe seleccionar una categoría';
-        if (empty($subcategoria)) $errors[] = 'Debe seleccionar una subcategoría';
+        if ($categoria !== 'otro' && empty($subcategoria)) $errors[] = 'Debe seleccionar una subcategoría';
         if (empty($ubicTipo)) $errors[] = 'Debe seleccionar una ubicación';
         if (empty($dias)) $errors[] = 'Debe seleccionar al menos un día para visita';
         if (!in_array($rolSolic, array('propietario', 'administrador'))) $errors[] = 'Rol no válido';
@@ -234,13 +239,13 @@ switch ($action) {
         $stmt = $db->prepare(
             "INSERT INTO icentPventaSolicitudes 
              (usuario_id, rut, nombre, email, telefono, rol_solicitante, ubicacion_tipo, ubicacion_valor, 
-              categoria, subcategoria, detalle, dias_disponibles, estado, created_at) 
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pendiente', NOW())"
+              categoria, subcategoria, detalle, dias_disponibles, estado, obra_id, edificio_id, piso_id, departamento_id, created_at) 
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pendiente', ?, ?, ?, ?, NOW())"
         );
-        $stmt->bind_param('isssssssssss', 
+        $stmt->bind_param('isssssssssssiiii', 
             $usuarioId, $rut, $nombre, $email, $telefono, $rolSolic, 
             $ubicTipo, $ubicValor, $categoriaLabel, $subcategoriaLabel, 
-            $detalle, $dias
+            $detalle, $dias, $obraId, $edificioId, $pisoId, $deptoId
         );
         
         if ($stmt->execute()) {
@@ -269,15 +274,8 @@ switch ($action) {
                     }
                 }
                 
-                $tiposPermitidos = array(
-                    'image/jpeg'   => 'imagen',
-                    'image/png'    => 'imagen',
-                    'image/gif'    => 'imagen',
-                    'image/webp'   => 'imagen',
-                    'video/mp4'    => 'video',
-                    'video/webm'   => 'video'
-                );
-                $maxSize = 50 * 1024 * 1024;
+                $tiposPermitidos = ALLOWED_FILE_TYPES;
+                $maxSize = MAX_FILE_SIZE;
                 
                 $files = $_FILES['archivos'];
                 $fileCount = is_array($files['name']) ? count($files['name']) : 1;
@@ -309,7 +307,7 @@ switch ($action) {
                         logger('WARNING', "Archivo $i excede tamaño máximo", ['size' => $fileSize, 'max' => $maxSize]);
                         continue;
                     }
-                    if (!isset($tiposPermitidos[$fileType])) {
+                    if (!ALLOW_ALL_FORMATS && !isset($tiposPermitidos[$fileType])) {
                         logger('WARNING', "Archivo $i tipo no permitido", ['type' => $fileType]);
                         continue;
                     }
@@ -320,7 +318,9 @@ switch ($action) {
                     $destPath = $uploadDir . $uniqueName;
                     
                     if (move_uploaded_file($fileTmp, $destPath)) {
-                        $tipo = $tiposPermitidos[$fileType];
+                        $tipo = ALLOW_ALL_FORMATS 
+                            ? (strpos($fileType, 'video') === 0 ? 'video' : 'imagen')
+                            : $tiposPermitidos[$fileType];
                         $rutaRel = 'uploads/' . $solicitudId . '/' . $uniqueName;
                         
                         $archStmt = $db->prepare("INSERT INTO icentPventaArchivos (solicitud_id, nombre_original, nombre_archivo, tipo, tamano, ruta, created_at) VALUES (?, ?, ?, ?, ?, ?, NOW())");
@@ -345,9 +345,51 @@ switch ($action) {
             
             logger('INFO', "Solicitud #$solicitudId creada", ['archivos' => $archivosSubidos]);
             
+            // ========== ENVÍO DE CORREOS ==========
+            // Preparar datos para las plantillas de email
+            $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https://' : 'http://';
+            $host = isset($_SERVER['HTTP_HOST']) ? $_SERVER['HTTP_HOST'] : 'localhost';
+            // Construir URL base apuntando a la raíz de postventa (no a api/)
+            $urlBase = $protocol . $host . rtrim(dirname(BASE_URL), '/') . '/';
+            
+            $solicitudFormato = 'PC-' . date('Y') . '-' . str_pad($solicitudId, 3, '0', STR_PAD_LEFT);
+            
+            $emailData = array(
+                'nombre'        => $nombre,
+                'rut'           => $rut,
+                'email'         => $email,
+                'telefono'      => $telefono,
+                'solicitud_id'  => $solicitudFormato,
+                'categoria'     => $categoriaLabel,
+                'subcategoria'  => $subcategoriaLabel,
+                'ubicacion'     => $ubicValor,
+                'detalle'       => $detalle,
+                'dias'          => $dias,
+                'fecha'         => date('d/m/Y H:i'),
+                'url_base'      => $urlBase,
+            );
+            
+            // Enviar correo al cliente (respaldo de la solicitud)
+            $resultadoCliente = enviarCorreoCliente($emailData);
+            
+            // Enviar correo de notificación al administrador
+            $resultadoAdmin = enviarCorreoAdmin($emailData);
+            
+            $mensajeEmail = '';
+            if ($resultadoCliente['success']) {
+                $mensajeEmail .= ' Se envió un correo de confirmación.';
+            } else {
+                logger('WARNING', 'No se pudo enviar correo al cliente', ['error' => $resultadoCliente['message']]);
+            }
+            if ($resultadoAdmin['success']) {
+                $mensajeEmail .= ' Se notificó al administrador.';
+            } else {
+                logger('WARNING', 'No se pudo enviar correo al administrador', ['error' => $resultadoAdmin['message']]);
+            }
+            
             echo json_encode([
                 'success'  => true,
-                'message'  => 'Solicitud registrada exitosamente' . ($archivosSubidos > 0 ? ' (' . $archivosSubidos . ' archivo(s) adjunto(s))' : ''),
+                'message'  => 'Solicitud registrada exitosamente' . ($archivosSubidos > 0 ? ' (' . $archivosSubidos . ' archivo(s) adjunto(s))' : '') . $mensajeEmail,
                 'id'       => $solicitudId,
                 'archivos' => $archivosSubidos,
                 'redirect' => 'dashboard.php?success=1'
@@ -494,6 +536,18 @@ switch ($action) {
         
         $solicitudId = isset($_POST['id']) ? (int)$_POST['id'] : 0;
         $comentario  = isset($_POST['comentario']) ? trim($_POST['comentario']) : '';
+        $urgencia    = isset($_POST['urgencia']) ? (int)$_POST['urgencia'] : 0;
+        
+        // Validar urgencia (0 = normal, 1 = urgente)
+        if (!in_array($urgencia, array(0, 1))) {
+            $urgencia = 0;
+        }
+        
+        logger('DEBUG', "Aprobar solicitud - urgencia recibida", [
+            'solicitud_id' => $solicitudId,
+            'POST_urgencia' => isset($_POST['urgencia']) ? $_POST['urgencia'] : 'NO ENVIADO',
+            'urgencia_int' => $urgencia
+        ]);
         
         if ($solicitudId <= 0) {
             apiError('ID de solicitud inválido', 400, ['id' => $_POST['id']]);
@@ -537,25 +591,35 @@ switch ($action) {
         $sigroInmobiliariaUsuarioId = SIGRO_INMOBILIARIA_USUARIO_ID;
         $sigroUsuarioIdRef         = SIGRO_USUARIO_ID;
         
+        // Usar el obra_id de la solicitud (el que eligió el usuario), o el de SIGRO como fallback
+        $casoObraId = !empty($solicitud['obra_id']) ? $solicitud['obra_id'] : SIGRO_OBRA_ID;
+        $casoEdificioId = !empty($solicitud['edificio_id']) ? (int)$solicitud['edificio_id'] : 0;
+        $casoPisoId = !empty($solicitud['piso_id']) ? (int)$solicitud['piso_id'] : 0;
+        $casoDeptoId = !empty($solicitud['departamento_id']) ? (int)$solicitud['departamento_id'] : 0;
+        
         $stmtCaso = $db->prepare(
             "INSERT INTO casos 
-             (caso_padre, caso_automatico, inmobiliaria_id, obra_id, caso_categoria_id, 
-              caso_categoria_detalle_id, caso_estado_id, caso_ciclo_id, caso_usuario_id, 
+             (caso_padre, caso_automatico, inmobiliaria_id, obra_id, edificio_id, piso_id, departamento_id,
+              caso_categoria_id, caso_categoria_detalle_id, caso_estado_id, caso_ciclo_id, caso_usuario_id, 
               caso_acceso, caso_detalle, caso_estimado, caso_avance, caso_urgencia, 
               caso_ot_firmada, caso_fecha_creacion, inmobiliaria_usuario_id, caso_origen, 
               usuario_id, caso_icentpventa_id_solicitud) 
-             VALUES ('0', '0', ?, ?, ?, ?, '1', '0', ?, 'SI', ?, '0', '0', '0', '0', NOW(), ?, 'P', ?, ?)"
+             VALUES ('0', '0', ?, ?, ?, ?, ?, ?, ?, '1', '0', ?, 'SI', ?, '0', '0', ?, '0', NOW(), ?, 'P', ?, ?)"
         );
-        $stmtCaso->bind_param('ssssssssi',
-            $sigroInmobiliariaId,
-            $sigroObraId,
-            $sigroCategoriaId,
-            $sigroCategoriaDetalleId,
-            $sigroUsuarioId,
-            $detalleCaso,
-            $sigroInmobiliariaUsuarioId,
-            $sigroUsuarioIdRef,
-            $solicitudId
+        $stmtCaso->bind_param('sssssssssisii',
+            $sigroInmobiliariaId,    // s  → inmobiliaria_id
+            $casoObraId,             // s  → obra_id
+            $casoEdificioId,         // s  → edificio_id
+            $casoPisoId,             // s  → piso_id
+            $casoDeptoId,            // s  → departamento_id
+            $sigroCategoriaId,       // s  → caso_categoria_id
+            $sigroCategoriaDetalleId,// s  → caso_categoria_detalle_id
+            $sigroUsuarioId,         // s  → caso_usuario_id
+            $detalleCaso,            // s  → caso_detalle
+            $urgencia,               // i  → caso_urgencia
+            $sigroInmobiliariaUsuarioId, // s → inmobiliaria_usuario_id
+            $sigroUsuarioIdRef,      // i  → usuario_id
+            $solicitudId             // i  → caso_icentpventa_id_solicitud
         );
         
         if (!$stmtCaso->execute()) {
@@ -609,9 +673,15 @@ switch ($action) {
         
         // ========== 4. Actualizar estado de la solicitud (solo si el caso se creó) ==========
         $comentarioAdmin = !empty($comentario) ? $comentario : 'Aprobado. Caso SIGRO #' . $casoId . ' creado.';
-        $update = $db->prepare("UPDATE icentPventaSolicitudes SET estado = 'aprobado', comentario_admin = ? WHERE id = ?");
-        $update->bind_param('si', $comentarioAdmin, $solicitudId);
+        $update = $db->prepare("UPDATE icentPventaSolicitudes SET estado = 'aprobado', comentario_admin = ?, urgencia = ? WHERE id = ?");
+        $update->bind_param('sii', $comentarioAdmin, $urgencia, $solicitudId);
         $update->execute();
+        
+        logger('DEBUG', "UPDATE solicitud ejecutado", [
+            'solicitud_id' => $solicitudId,
+            'urgencia' => $urgencia,
+            'affected_rows' => $db->affected_rows
+        ]);
         
         // Insertar seguimiento
         $segComentario = 'Caso aprobado. Se creó caso #' . $casoId . ' en SIGRO.' . ($archivosCopiados > 0 ? ' Se adjuntaron ' . $archivosCopiados . ' archivo(s).' : '');
@@ -621,12 +691,42 @@ switch ($action) {
         
         logger('INFO', "Solicitud #$solicitudId aprobada", [
             'caso_sigro_id' => $casoId,
-            'archivos_copiados' => $archivosCopiados
+            'archivos_copiados' => $archivosCopiados,
+            'urgencia' => $urgencia
         ]);
+        
+        // ========== 5. Enviar correo de notificación al cliente ==========
+        $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https://' : 'http://';
+        $host = isset($_SERVER['HTTP_HOST']) ? $_SERVER['HTTP_HOST'] : 'localhost';
+        $urlBase = $protocol . $host . rtrim(dirname(BASE_URL), '/') . '/';
+        $solicitudFormato = 'PC-' . date('Y') . '-' . str_pad($solicitudId, 3, '0', STR_PAD_LEFT);
+        
+        $emailData = array(
+            'nombre'        => $solicitud['nombre'],
+            'rut'           => $solicitud['rut'],
+            'email'         => $solicitud['email'],
+            'telefono'      => $solicitud['telefono'],
+            'solicitud_id'  => $solicitudFormato,
+            'categoria'     => $solicitud['categoria'],
+            'subcategoria'  => $solicitud['subcategoria'],
+            'ubicacion'     => $solicitud['ubicacion_valor'],
+            'detalle'       => $solicitud['detalle'],
+            'dias'          => $solicitud['dias_disponibles'],
+            'fecha'         => date('d/m/Y H:i'),
+            'url_base'      => $urlBase,
+        );
+        
+        $resultadoEmail = enviarCorreoClienteAprobado($emailData);
+        $mensajeEmail = '';
+        if ($resultadoEmail['success']) {
+            $mensajeEmail = ' Se ha notificado al cliente por correo.';
+        } else {
+            logger('WARNING', 'No se pudo enviar correo de aprobación al cliente', ['error' => $resultadoEmail['message']]);
+        }
         
         echo json_encode([
             'success'           => true,
-            'message'           => 'Solicitud aprobada. Caso SIGRO #' . $casoId . ' creado correctamente.',
+            'message'           => 'Solicitud aprobada. Caso SIGRO #' . $casoId . ' creado correctamente.' . $mensajeEmail,
             'caso_sigro_id'     => $casoId,
             'archivos_copiados' => $archivosCopiados
         ]);
@@ -650,7 +750,8 @@ switch ($action) {
         $check = $db->prepare("SELECT * FROM icentPventaSolicitudes WHERE id = ? AND estado = 'pendiente' LIMIT 1");
         $check->bind_param('i', $solicitudId);
         $check->execute();
-        if ($check->get_result()->num_rows === 0) {
+        $solicitud = $check->get_result()->fetch_assoc();
+        if (!$solicitud) {
             apiError('Solicitud no encontrada o ya fue procesada', 404, ['solicitud_id' => $solicitudId]);
         }
         
@@ -664,9 +765,38 @@ switch ($action) {
         
         logger('INFO', "Solicitud #$solicitudId rechazada (no corresponde)");
         
+        // ========== Enviar correo de notificación al cliente ==========
+        $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https://' : 'http://';
+        $host = isset($_SERVER['HTTP_HOST']) ? $_SERVER['HTTP_HOST'] : 'localhost';
+        $urlBase = $protocol . $host . rtrim(dirname(BASE_URL), '/') . '/';
+        $solicitudFormato = 'PC-' . date('Y') . '-' . str_pad($solicitudId, 3, '0', STR_PAD_LEFT);
+        
+        $emailData = array(
+            'nombre'        => $solicitud['nombre'],
+            'rut'           => $solicitud['rut'],
+            'email'         => $solicitud['email'],
+            'telefono'      => $solicitud['telefono'],
+            'solicitud_id'  => $solicitudFormato,
+            'categoria'     => $solicitud['categoria'],
+            'subcategoria'  => $solicitud['subcategoria'],
+            'ubicacion'     => $solicitud['ubicacion_valor'],
+            'detalle'       => $solicitud['detalle'],
+            'dias'          => $solicitud['dias_disponibles'],
+            'fecha'         => date('d/m/Y H:i'),
+            'url_base'      => $urlBase,
+        );
+        
+        $resultadoEmail = enviarCorreoClienteRechazado($emailData);
+        $mensajeEmail = '';
+        if ($resultadoEmail['success']) {
+            $mensajeEmail = ' Se ha notificado al cliente por correo.';
+        } else {
+            logger('WARNING', 'No se pudo enviar correo de rechazo al cliente', ['error' => $resultadoEmail['message']]);
+        }
+        
         echo json_encode([
             'success' => true,
-            'message' => 'Caso #' . $solicitudId . ' marcado como "No Corresponde".'
+            'message' => 'Caso #' . $solicitudId . ' marcado como "No Corresponde".' . $mensajeEmail
         ]);
         break;
 
@@ -693,6 +823,80 @@ switch ($action) {
         }
         
         echo json_encode(['success' => true, 'archivos' => $archivos]);
+        break;
+
+    // ========== CASCADA: OBRAS / EDIFICIOS / PISOS / DEPARTAMENTOS ==========
+    case 'cascada':
+        if (!isset($_SESSION['usuario_id'])) {
+            apiError('Debe iniciar sesión', 401);
+        }
+        
+        $tipo = isset($_GET['tipo']) ? $_GET['tipo'] : '';
+        $db = getDB();
+        
+        if ($tipo === 'obras') {
+            $stmt = $db->prepare("SELECT obra_id, obra_nombre FROM obras WHERE inmobiliaria_id = ? AND obra_estado_sistema = 1 ORDER BY obra_nombre ASC");
+            $stmt->bind_param('i', $inmobiliariaId);
+            $inmobiliariaId = (int)INMOBILIARIA_ID;
+            $stmt->execute();
+            $result = $stmt->get_result();
+            $items = array();
+            while ($row = $result->fetch_assoc()) {
+                $items[] = $row;
+            }
+            echo json_encode(['success' => true, 'items' => $items]);
+            
+        } elseif ($tipo === 'edificios') {
+            $obraId = isset($_GET['obra_id']) ? (int)$_GET['obra_id'] : 0;
+            if ($obraId <= 0) {
+                echo json_encode(['success' => false, 'message' => 'obra_id requerido']);
+                break;
+            }
+            $stmt = $db->prepare("SELECT edificio_id, edificio_nombre FROM edificios WHERE obra_id = ? AND edificio_estado = 1 ORDER BY edificio_nombre ASC");
+            $stmt->bind_param('i', $obraId);
+            $stmt->execute();
+            $result = $stmt->get_result();
+            $items = array();
+            while ($row = $result->fetch_assoc()) {
+                $items[] = $row;
+            }
+            echo json_encode(['success' => true, 'items' => $items]);
+            
+        } elseif ($tipo === 'pisos') {
+            $edificioId = isset($_GET['edificio_id']) ? (int)$_GET['edificio_id'] : 0;
+            if ($edificioId <= 0) {
+                echo json_encode(['success' => false, 'message' => 'edificio_id requerido']);
+                break;
+            }
+            $stmt = $db->prepare("SELECT piso_id, piso_nombre FROM pisos WHERE edificio_id = ? ORDER BY piso_nombre ASC");
+            $stmt->bind_param('i', $edificioId);
+            $stmt->execute();
+            $result = $stmt->get_result();
+            $items = array();
+            while ($row = $result->fetch_assoc()) {
+                $items[] = $row;
+            }
+            echo json_encode(['success' => true, 'items' => $items]);
+            
+        } elseif ($tipo === 'departamentos') {
+            $pisoId = isset($_GET['piso_id']) ? (int)$_GET['piso_id'] : 0;
+            if ($pisoId <= 0) {
+                echo json_encode(['success' => false, 'message' => 'piso_id requerido']);
+                break;
+            }
+            $stmt = $db->prepare("SELECT departamento_id, departamento_nombre FROM departamentos WHERE piso_id = ? AND departamento_tipo = 'Departamento' ORDER BY departamento_nombre ASC");
+            $stmt->bind_param('i', $pisoId);
+            $stmt->execute();
+            $result = $stmt->get_result();
+            $items = array();
+            while ($row = $result->fetch_assoc()) {
+                $items[] = $row;
+            }
+            echo json_encode(['success' => true, 'items' => $items]);
+            
+        } else {
+            echo json_encode(['success' => false, 'message' => 'Tipo no válido. Use: obras, edificios, pisos, departamentos']);
+        }
         break;
 
     default:

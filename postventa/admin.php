@@ -27,8 +27,10 @@ $totalSolicitudes = $totalRow['total'];
 $totalPaginas = ceil($totalSolicitudes / $porPagina);
 
 $result = $db->query("SELECT s.id, s.created_at, s.rut, s.nombre, s.email, s.telefono, s.rol_solicitante, 
-                             s.ubicacion_valor, s.categoria, s.subcategoria, s.estado, s.detalle, s.dias_disponibles
+                             s.ubicacion_valor, s.categoria, s.subcategoria, s.estado, s.detalle, s.dias_disponibles, s.urgencia,
+                             s.obra_id, o.obra_nombre
                       FROM icentPventaSolicitudes s 
+                      LEFT JOIN obras o ON s.obra_id = o.obra_id
                       ORDER BY s.created_at DESC
                       LIMIT $porPagina OFFSET $offset");
 
@@ -48,6 +50,9 @@ while ($row = $result->fetch_assoc()) {
         'estado' => $row['estado'],
         'detalle' => $row['detalle'],
         'dias' => $row['dias_disponibles'],
+        'urgencia' => $row['urgencia'],
+        'obra_id' => $row['obra_id'],
+        'obra_nombre' => $row['obra_nombre'],
         'evidencia' => 0
     ];
 }
@@ -233,6 +238,18 @@ include 'includes/header.php';
                     <option value="Terminaciones">Terminaciones</option>
                 </select>
             </div>
+            <div class="form-group">
+                <label for="filterObra"><i class="fas fa-building"></i> Obra</label>
+                <select id="filterObra" class="form-control">
+                    <option value="">Todas las obras</option>
+                    <?php
+                    $obrasResult = $db->query("SELECT obra_id, obra_nombre FROM obras WHERE inmobiliaria_id = " . INMOBILIARIA_ID . " AND obra_estado_sistema = 1 ORDER BY obra_nombre ASC");
+                    while ($obra = $obrasResult->fetch_assoc()) {
+                        echo '<option value="' . $obra['obra_id'] . '">' . htmlspecialchars($obra['obra_nombre']) . '</option>';
+                    }
+                    ?>
+                </select>
+            </div>
             <button type="button" class="btn btn-outline btn-sm" id="clearFilters">
                 <i class="fas fa-times"></i> Limpiar
             </button>
@@ -259,8 +276,10 @@ include 'includes/header.php';
                                 <th>RUT</th>
                                 <th>Rol</th>
                                 <th>Categoría</th>
+                                <th>Obra</th>
                                 <th>Ubicación</th>
                                 <th>Estado</th>
+                                <th>Prioridad</th>
                                 <th>Acciones</th>
                             </tr>
                         </thead>
@@ -287,6 +306,7 @@ include 'includes/header.php';
                             <tr class="case-row" 
                                 data-estado="<?php echo $sol['estado']; ?>" 
                                 data-rol="<?php echo $sol['rol']; ?>"
+                                data-obra="<?php echo $sol['obra_id']; ?>"
                                 data-categoria="<?php echo strpos($sol['categoria'], 'Estructural') !== false ? 'Estructural' : (strpos($sol['categoria'], 'Instalaciones') !== false ? 'Instalaciones' : 'Terminaciones'); ?>">
                                 <td><span class="case-id">#<?php echo $sol['id']; ?></span></td>
                                 <td><?php echo $sol['fecha']; ?></td>
@@ -294,8 +314,21 @@ include 'includes/header.php';
                                 <td><?php echo $sol['rut']; ?></td>
                                 <td><?php echo $sol['rol']; ?></td>
                                 <td><?php echo $sol['categoria']; ?></td>
+                                <td><?php echo htmlspecialchars($sol['obra_nombre'] ?: '—'); ?></td>
                                 <td><?php echo $sol['ubicacion']; ?></td>
                                 <td><span class="badge <?php echo $badgeClass; ?>"><?php echo $estadoLabel; ?></span></td>
+                                <td>
+                                    <?php if ($sol['estado'] === 'pendiente'): ?>
+                                    <select class="urgencia-select form-control" data-case-id="<?php echo $sol['id_num']; ?>" style="width:100px; padding:4px 6px; font-size:0.78rem;">
+                                        <option value="0" <?php echo (isset($sol['urgencia']) && $sol['urgencia'] == 0) ? 'selected' : ''; ?>>Normal</option>
+                                        <option value="1" <?php echo (isset($sol['urgencia']) && $sol['urgencia'] == 1) ? 'selected' : ''; ?>>Urgente</option>
+                                    </select>
+                                    <?php else: ?>
+                                    <span class="badge <?php echo (isset($sol['urgencia']) && $sol['urgencia'] == 1) ? 'badge-rejected' : 'badge-pending'; ?>" style="font-size:0.75rem;">
+                                        <?php echo (isset($sol['urgencia']) && $sol['urgencia'] == 1) ? 'Urgente' : 'Normal'; ?>
+                                    </span>
+                                    <?php endif; ?>
+                                </td>
                                 <td>
                                     <div class="action-buttons">
                                         <button class="action-btn view view-case" data-case-id="<?php echo $sol['id_num']; ?>" title="Ver detalle">
@@ -432,6 +465,16 @@ include 'includes/header.php';
             <!-- Cambio de Estado -->
             <div class="detail-section">
                 <h3><i class="fas fa-exchange-alt"></i> Cambiar Estado</h3>
+                
+                <!-- Selector de Urgencia (solo admin_sistema) -->
+                <div style="display:flex; align-items:center; gap:12px; margin-bottom: 16px;">
+                    <span style="font-weight:600; font-size:0.85rem;">Nivel de Urgencia:</span>
+                    <select id="modalUrgenciaSelect" class="status-select" style="width:auto; min-width:140px;">
+                        <option value="0">Normal</option>
+                        <option value="1">Urgente</option>
+                    </select>
+                </div>
+                
                 <div style="display:flex; align-items:center; gap:12px;">
                     <span>Estado actual:</span>
                     <span class="badge" id="modalStatusBadge">Pendiente</span>
@@ -477,9 +520,14 @@ $(document).ready(function() {
         applyFilters();
     });
     
+    // Filtro por obra
+    $('#filterObra').on('change', function() {
+        applyFilters();
+    });
+    
     // Limpiar filtros
     $('#clearFilters').on('click', function() {
-        $('#filterSearch, #filterEstado, #filterRol, #filterCategoria').val('');
+        $('#filterSearch, #filterEstado, #filterRol, #filterCategoria, #filterObra').val('');
         $('.case-row').show();
     });
     
@@ -494,6 +542,7 @@ $(document).ready(function() {
         var estado = $('#filterEstado').val();
         var rol = $('#filterRol').val();
         var categoria = $('#filterCategoria').val();
+        var obra = $('#filterObra').val();
         var search = $('#filterSearch').val().toLowerCase();
         
         $('.case-row').each(function() {
@@ -502,6 +551,7 @@ $(document).ready(function() {
             if (estado && $(this).data('estado') !== estado) show = false;
             if (rol && $(this).data('rol') !== rol) show = false;
             if (categoria && $(this).data('categoria') !== categoria) show = false;
+            if (obra && String($(this).data('obra')) !== obra) show = false;
             if (search && $(this).text().toLowerCase().indexOf(search) === -1) show = false;
             
             $(this).toggle(show);

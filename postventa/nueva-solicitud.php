@@ -84,6 +84,16 @@ $areasComunes = [
     'otro' => 'Otra Área Común',
 ];
 
+// Preparar datos de upload para la vista
+$allowedMimes = ALLOWED_FILE_TYPES;
+$acceptList = ALLOW_ALL_FORMATS ? '' : implode(',', array_keys($allowedMimes));
+if (ALLOW_ALL_FORMATS) {
+    $hintText = 'Todos los formatos permitidos';
+} else {
+    $exts = array_unique(array_map(function($m) { return explode('/', $m)[1]; }, array_keys($allowedMimes)));
+    $hintText = 'Formatos permitidos: ' . strtoupper(implode(', ', $exts));
+}
+
 include 'includes/header.php';
 ?>
 
@@ -150,35 +160,58 @@ include 'includes/header.php';
                 <h2>Ubicación del Problema</h2>
             </div>
             <div class="form-section-body">
-                <!-- Campos para Propietario -->
-                <div id="propietario-fields" style="display:none;">
+                
+                <!-- Selects en cascada: Obra → Edificio → Piso → Departamento -->
+                <div class="form-row">
                     <div class="form-group">
-                        <label for="departamento">N° de Departamento <span class="required">*</span></label>
-                        <select id="departamento" name="departamento" class="form-control">
-                            <option value="">Seleccione su departamento...</option>
-                            <?php foreach ($departamentos as $val => $label): ?>
-                            <option value="<?php echo $val; ?>"><?php echo $label; ?></option>
-                            <?php endforeach; ?>
+                        <label for="obra">Proyecto <span class="required">*</span></label>
+                        <select id="obra" name="obra" class="form-control">
+                            <option value="">Seleccione una obra...</option>
                         </select>
                     </div>
+                    <div class="form-group">
+                        <label for="edificio">Edificio <span class="required">*</span></label>
+                        <select id="edificio" name="edificio" class="form-control" disabled>
+                            <option value="">Primero seleccione una obra...</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="piso">Piso <span class="required">*</span></label>
+                        <select id="piso" name="piso" class="form-control" disabled>
+                            <option value="">Primero seleccione un edificio...</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="departamento">N° de Departamento <span class="required">*</span></label>
+                        <select id="departamento" name="departamento" class="form-control" disabled>
+                            <option value="">Primero seleccione un piso...</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <!-- Campos para Propietario -->
+                <div id="propietario-fields" style="display:none;">
+                    <p class="text-muted mb-2" style="font-size:0.82rem;">
+                        <i class="fas fa-info-circle"></i> Si el problema afecta solo a su departamento, no marque ninguna opción adicional.
+                    </p>
                     <div class="form-row">
                         <div class="form-group">
-                            <label for="estacionamiento">Estacionamiento</label>
-                            <select id="estacionamiento" name="estacionamiento" class="form-control">
-                                <option value="">No aplica / Sin estacionamiento</option>
-                                <?php foreach ($estacionamientos as $val => $label): ?>
-                                <option value="<?php echo $val; ?>"><?php echo $label; ?></option>
-                                <?php endforeach; ?>
-                            </select>
+                            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:600;">
+                                <input type="checkbox" id="tiene_estacionamiento" name="tiene_estacionamiento" value="1" style="accent-color:var(--color-primary);width:18px;height:18px;">
+                                El problema está en mi Estacionamiento
+                            </label>
+                            <input type="text" id="estacionamiento_num" name="estacionamiento_num" class="form-control" 
+                                   placeholder="N° de estacionamiento" disabled style="margin-top:6px;">
                         </div>
                         <div class="form-group">
-                            <label for="bodega">Bodega</label>
-                            <select id="bodega" name="bodega" class="form-control">
-                                <option value="">No aplica / Sin bodega</option>
-                                <?php foreach ($bodegas as $val => $label): ?>
-                                <option value="<?php echo $val; ?>"><?php echo $label; ?></option>
-                                <?php endforeach; ?>
-                            </select>
+                            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:600;">
+                                <input type="checkbox" id="tiene_bodega" name="tiene_bodega" value="1" style="accent-color:var(--color-primary);width:18px;height:18px;">
+                                El problema está en mi Bodega
+                            </label>
+                            <input type="text" id="bodega_num" name="bodega_num" class="form-control" 
+                                   placeholder="N° de bodega" disabled style="margin-top:6px;">
                         </div>
                     </div>
                 </div>
@@ -213,6 +246,7 @@ include 'includes/header.php';
                             <option value="estructural">Fallas Estructurales / Estéticas</option>
                             <option value="instalaciones">Instalaciones (Gas / Agua / Luz)</option>
                             <option value="terminaciones">Terminaciones</option>
+                            <option value="otro">Otro</option>
                         </select>
                     </div>
                     <div class="form-group" id="subcategoria-group" style="display:none;">
@@ -237,9 +271,9 @@ include 'includes/header.php';
                     <div class="drop-zone" id="dropZone">
                         <div class="drop-icon"><i class="fas fa-cloud-upload-alt"></i></div>
                         <div class="drop-text">Arrastra aquí tus archivos o haz clic para seleccionar</div>
-                        <div class="drop-hint">Formatos permitidos: JPG, PNG, GIF, WEBP, MP4, WEBM</div>
+                        <div class="drop-hint"><?php echo $hintText; ?></div>
                     </div>
-                    <input type="file" id="fileInput" name="archivos[]" multiple accept="image/*,video/*" style="display:none;">
+                    <input type="file" id="fileInput" name="archivos[]" multiple accept="<?php echo $acceptList; ?>" style="display:none;">
                     <div class="file-list" id="fileList"></div>
                 </div>
                 
@@ -257,7 +291,12 @@ include 'includes/header.php';
                 <h2>Días Disponibles para Visita</h2>
             </div>
             <div class="form-section-body">
-                <p class="text-muted mb-3">Seleccione los días y horarios en que estaría disponible para recibir la visita técnica. <strong>Debe seleccionar al menos un bloque.</strong></p>
+                <p class="text-muted mb-3">Seleccione los días y horarios en que estaría disponible para recibir la visita técnica. <strong>Debe seleccionar al menos 2 períodos en días distintos.</strong></p>
+                
+                <div class="availability-notice">
+                    <i class="fas fa-info-circle"></i>
+                    <span><strong>Importante:</strong> La disponibilidad indicada está sujeta a disponibilidad y confirmación de la inmobiliaria.</span>
+                </div>
                 
                 <div class="days-grid">
                     <?php
@@ -298,5 +337,11 @@ include 'includes/header.php';
         
     </form>
 </div>
-
+<script>
+var APP_CONFIG = {
+    allowAllFormats: <?php echo ALLOW_ALL_FORMATS ? 'true' : 'false'; ?>,
+    allowedTypes: <?php echo json_encode(array_keys($allowedMimes)); ?>,
+    maxFileSize: <?php echo MAX_FILE_SIZE; ?>
+};
+</script>
 <?php include 'includes/footer.php'; ?>

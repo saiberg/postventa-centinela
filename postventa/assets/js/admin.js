@@ -76,6 +76,8 @@ $(document).ready(function() {
         var caseId = $(this).data('case-id');
         var $btn = $(this);
         var $row = $btn.closest('tr');
+        var urgencia = $row.find('.urgencia-select').val() || '0';
+        console.log('Aprobar caso #' + caseId + ' con urgencia=' + urgencia);
         
         showConfirm(
             '¿Confirmas la aprobación del caso <strong>#' + caseId + '</strong>?<br><small>Se creará un caso en el sistema SIGRO.</small>',
@@ -85,12 +87,17 @@ $(document).ready(function() {
                 $.ajax({
                     url: 'api/solicitudes.php?action=aprobar',
                     method: 'POST',
-                    data: { id: caseId },
+                    data: { id: caseId, urgencia: urgencia },
                     dataType: 'json',
                     success: function(response) {
                         if (response.success) {
                             showToast(response.message, 'success');
                             $row.find('.badge').removeClass('badge-pending').addClass('badge-approved').text('Aprobado');
+                            // Reemplazar select de urgencia por badge
+                            var $urgenciaTd = $row.find('.urgencia-select').closest('td');
+                            var urgenciaLabel = urgencia == '1' ? 'Urgente' : 'Normal';
+                            var urgenciaBadgeClass = urgencia == '1' ? 'badge-rejected' : 'badge-pending';
+                            $urgenciaTd.html('<span class="badge ' + urgenciaBadgeClass + '" style="font-size:0.75rem;">' + urgenciaLabel + '</span>');
                             $row.find('.approve-case, .reject-case').remove();
                         } else {
                             showToast(response.message, 'error', 6000);
@@ -126,6 +133,9 @@ $(document).ready(function() {
                         if (response.success) {
                             showToast(response.message, 'warning');
                             $row.find('.badge').removeClass('badge-pending').addClass('badge-rejected').text('No Corresponde');
+                            // Reemplazar select de urgencia por badge
+                            var $urgenciaTd = $row.find('.urgencia-select').closest('td');
+                            $urgenciaTd.html('<span class="badge badge-pending" style="font-size:0.75rem;">Normal</span>');
                             $row.find('.approve-case, .reject-case').remove();
                         } else {
                             showToast(response.message, 'error', 6000);
@@ -233,6 +243,9 @@ function loadCaseDetail(caseId) {
             
             // Select de estado
             $('#modalStatusSelect').val(s.estado).data('current-status', s.estado);
+            
+            // Select de urgencia
+            $('#modalUrgenciaSelect').val(s.urgencia || '0');
             
             // Cargar archivos adjuntos
             $.ajax({
