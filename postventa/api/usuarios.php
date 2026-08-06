@@ -150,7 +150,7 @@ switch ($action) {
         }
         
         $db = getDB();
-        $stmt = $db->prepare("SELECT id, rut, nombre, email, password, telefono, rol, activo FROM icentPventaUsuarios WHERE email = ? LIMIT 1");
+        $stmt = $db->prepare("SELECT id, rut, nombre, email, password, telefono, rol, activo FROM icentpventausuarios WHERE email = ? LIMIT 1");
         $stmt->bind_param('s', $email);
         $stmt->execute();
         $result = $stmt->get_result();
@@ -239,7 +239,7 @@ switch ($action) {
         
         $db = getDB();
         
-        $check = $db->prepare("SELECT id FROM icentPventaUsuarios WHERE email = ? LIMIT 1");
+        $check = $db->prepare("SELECT id FROM icentpventausuarios WHERE email = ? LIMIT 1");
         $check->bind_param('s', $email);
         $check->execute();
         if ($check->get_result()->num_rows > 0) {
@@ -248,7 +248,7 @@ switch ($action) {
         }
         
         $hashedPassword = password_hash($password, PASSWORD_BCRYPT);
-        $stmt = $db->prepare("INSERT INTO icentPventaUsuarios (rut, nombre, email, password, telefono, rol, activo, created_at) VALUES (?, ?, ?, ?, ?, 'propietario', 1, NOW())");
+        $stmt = $db->prepare("INSERT INTO icentpventausuarios (rut, nombre, email, password, telefono, rol, activo, created_at) VALUES (?, ?, ?, ?, ?, 'propietario', 1, NOW())");
         $stmt->bind_param('sssss', $rut, $nombre, $email, $hashedPassword, $telefono);
         
         if ($stmt->execute()) {
@@ -278,7 +278,7 @@ switch ($action) {
         }
         
         $db = getDB();
-        $stmt = $db->prepare("SELECT id, nombre FROM icentPventaUsuarios WHERE email = ? AND activo = 1 LIMIT 1");
+        $stmt = $db->prepare("SELECT id, nombre FROM icentpventausuarios WHERE email = ? AND activo = 1 LIMIT 1");
         $stmt->bind_param('s', $email);
         $stmt->execute();
         $result = $stmt->get_result();
@@ -287,7 +287,7 @@ switch ($action) {
             $user = $result->fetch_assoc();
             $token = bin2hex(openssl_random_pseudo_bytes(32));
             $expiracion = date('Y-m-d H:i:s', strtotime('+1 hour'));
-            $update = $db->prepare("UPDATE icentPventaUsuarios SET token_recuperacion = ?, token_expiracion = ? WHERE id = ?");
+            $update = $db->prepare("UPDATE icentpventausuarios SET token_recuperacion = ?, token_expiracion = ? WHERE id = ?");
             $update->bind_param('ssi', $token, $expiracion, $user['id']);
             $update->execute();
         }
@@ -304,7 +304,7 @@ switch ($action) {
         }
         
         $db = getDB();
-        $stmt = $db->prepare("SELECT id, rut, nombre, email, telefono, rol, created_at FROM icentPventaUsuarios WHERE id = ? LIMIT 1");
+        $stmt = $db->prepare("SELECT id, rut, nombre, email, telefono, rol, created_at FROM icentpventausuarios WHERE id = ? LIMIT 1");
         $stmt->bind_param('i', $_SESSION['usuario_id']);
         $stmt->execute();
         $user = $stmt->get_result()->fetch_assoc();
@@ -324,7 +324,7 @@ switch ($action) {
         $telefono = isset($_POST['telefono']) ? trim($_POST['telefono']) : '';
         
         $db = getDB();
-        $stmt = $db->prepare("UPDATE icentPventaUsuarios SET nombre = ?, telefono = ? WHERE id = ?");
+        $stmt = $db->prepare("UPDATE icentpventausuarios SET nombre = ?, telefono = ? WHERE id = ?");
         $stmt->bind_param('ssi', $nombre, $telefono, $_SESSION['usuario_id']);
         
         if ($stmt->execute()) {
@@ -357,7 +357,7 @@ switch ($action) {
         }
         
         $db = getDB();
-        $stmt = $db->prepare("SELECT password FROM icentPventaUsuarios WHERE id = ? LIMIT 1");
+        $stmt = $db->prepare("SELECT password FROM icentpventausuarios WHERE id = ? LIMIT 1");
         $stmt->bind_param('i', $_SESSION['usuario_id']);
         $stmt->execute();
         $user = $stmt->get_result()->fetch_assoc();
@@ -368,7 +368,7 @@ switch ($action) {
         }
         
         $hashed = password_hash($nueva, PASSWORD_BCRYPT);
-        $update = $db->prepare("UPDATE icentPventaUsuarios SET password = ? WHERE id = ?");
+        $update = $db->prepare("UPDATE icentpventausuarios SET password = ? WHERE id = ?");
         $update->bind_param('si', $hashed, $_SESSION['usuario_id']);
         $update->execute();
         
@@ -392,7 +392,7 @@ switch ($action) {
         }
         
         $db = getDB();
-        $result = $db->query("SELECT id, rut, nombre, email, telefono, rol, activo, created_at FROM icentPventaUsuarios ORDER BY created_at DESC");
+        $result = $db->query("SELECT id, rut, nombre, email, telefono, rol, activo, created_at FROM icentpventausuarios ORDER BY created_at DESC");
         $usuarios = array();
         while ($row = $result->fetch_assoc()) {
             $usuarios[] = $row;
@@ -435,7 +435,7 @@ switch ($action) {
         $db = getDB();
         
         // Verificar que no se esté modificando a otro admin_sistema
-        $check = $db->prepare("SELECT rol FROM icentPventaUsuarios WHERE id = ? LIMIT 1");
+        $check = $db->prepare("SELECT rol FROM icentpventausuarios WHERE id = ? LIMIT 1");
         $check->bind_param('i', $userId);
         $check->execute();
         $target = $check->get_result()->fetch_assoc();
@@ -446,7 +446,7 @@ switch ($action) {
         }
         
         // Verificar email duplicado
-        $dup = $db->prepare("SELECT id FROM icentPventaUsuarios WHERE email = ? AND id != ? LIMIT 1");
+        $dup = $db->prepare("SELECT id FROM icentpventausuarios WHERE email = ? AND id != ? LIMIT 1");
         $dup->bind_param('si', $email, $userId);
         $dup->execute();
         if ($dup->get_result()->num_rows > 0) {
@@ -454,7 +454,7 @@ switch ($action) {
             exit;
         }
         
-        $stmt = $db->prepare("UPDATE icentPventaUsuarios SET email = ?, telefono = ?, rol = ?, activo = ? WHERE id = ?");
+        $stmt = $db->prepare("UPDATE icentpventausuarios SET email = ?, telefono = ?, rol = ?, activo = ? WHERE id = ?");
         $stmt->bind_param('sssii', $email, $telefono, $rol, $activo, $userId);
         
         if ($stmt->execute()) {

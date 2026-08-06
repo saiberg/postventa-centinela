@@ -14,6 +14,8 @@ $currentPage = basename($_SERVER['PHP_SELF']);
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- CSRF Token para llamadas AJAX -->
+    <meta name="csrf-token" content="<?php echo isset($_SESSION['api_csrf_token']) ? $_SESSION['api_csrf_token'] : ''; ?>">
     <title><?php echo SITE_NAME; ?> - Inmobiliaria Centinela</title>
     
     <!-- Favicon -->

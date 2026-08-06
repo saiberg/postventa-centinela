@@ -46,111 +46,80 @@ $(document).ready(function() {
         if (!this.checked) $('#bodega_num').val('');
     });
     
-    // --- Cascada: Obra → Edificio → Piso → Departamento ---
-    // Cargar obras al iniciar
+    // --- Cascada: Tipo Edificio → Obra → Departamento ---
+    // Cargar tipos de edificio al iniciar
     $.ajax({
-        url: 'api/solicitudes.php?action=cascada&tipo=obras',
+        url: 'api/solicitudes.php?action=cascada&tipo=tipos_edificio',
         method: 'GET',
         dataType: 'json',
         success: function(response) {
+            console.log('Tipos edificio response:', response);
             if (response.success && response.items) {
-                var $obra = $('#obra');
+                var $tipo = $('#tipo_edificio');
                 $.each(response.items, function(i, item) {
-                    $obra.append('<option value="' + item.obra_id + '">' + item.obra_nombre + '</option>');
+                    $tipo.append('<option value="' + item.edificio_tipo_id + '">' + item.edificio_tipo_nombre + '</option>');
                 });
             }
+        },
+        error: function(jqXHR, textStatus, errorThrown) {
+            console.error('Error al cargar tipos de edificio:', textStatus, errorThrown);
         }
     });
     
-    // Obra → Edificio
+    // Tipo Edificio → Obra
+    $('#tipo_edificio').on('change', function() {
+        var tipoEdificioId = $(this).val();
+        var $obra = $('#obra');
+        var $depto = $('#departamento');
+        
+        $obra.empty().append('<option value="">Cargando...</option>').prop('disabled', true);
+        $depto.empty().append('<option value="">Primero seleccione un proyecto...</option>').prop('disabled', true);
+        $('#piso_id_hidden').val('0');
+        $('#edificio_id_hidden').val('0');
+        
+        if (!tipoEdificioId) {
+            $obra.empty().append('<option value="">Primero seleccione un tipo de edificio...</option>');
+            return;
+        }
+        
+        $.ajax({
+            url: 'api/solicitudes.php?action=cascada&tipo=obras&tipo_edificio_id=' + tipoEdificioId,
+            method: 'GET',
+            dataType: 'json',
+            success: function(response) {
+                $obra.empty();
+                if (response.success && response.items && response.items.length > 0) {
+                    $obra.append('<option value="">Seleccione un proyecto...</option>');
+                    $.each(response.items, function(i, item) {
+                        $obra.append('<option value="' + item.obra_id + '">' + item.obra_nombre + '</option>');
+                    });
+                    $obra.prop('disabled', false);
+                } else {
+                    $obra.append('<option value="">Sin proyectos disponibles para este tipo</option>');
+                }
+            },
+            error: function() {
+                $obra.empty().append('<option value="">Error al cargar</option>');
+            }
+        });
+    });
+    
+    // Obra → Departamentos (todos los deptos de todos los edificios de la obra)
     $('#obra').on('change', function() {
         var obraId = $(this).val();
-        var $edificio = $('#edificio');
-        var $piso = $('#piso');
-        var $depto = $('#departamento');
-        
-        // Resetear selects dependientes
-        $edificio.empty().append('<option value="">Cargando...</option>').prop('disabled', true);
-        $piso.empty().append('<option value="">Primero seleccione un edificio...</option>').prop('disabled', true);
-        $depto.empty().append('<option value="">Primero seleccione un piso...</option>').prop('disabled', true);
-        
-        if (!obraId) {
-            $edificio.empty().append('<option value="">Primero seleccione una obra...</option>');
-            return;
-        }
-        
-        $.ajax({
-            url: 'api/solicitudes.php?action=cascada&tipo=edificios&obra_id=' + obraId,
-            method: 'GET',
-            dataType: 'json',
-            success: function(response) {
-                $edificio.empty();
-                if (response.success && response.items && response.items.length > 0) {
-                    $edificio.append('<option value="">Seleccione un edificio...</option>');
-                    $.each(response.items, function(i, item) {
-                        $edificio.append('<option value="' + item.edificio_id + '">' + item.edificio_nombre + '</option>');
-                    });
-                    $edificio.prop('disabled', false);
-                } else {
-                    $edificio.append('<option value="">Sin edificios disponibles</option>');
-                }
-            },
-            error: function() {
-                $edificio.empty().append('<option value="">Error al cargar</option>');
-            }
-        });
-    });
-    
-    // Edificio → Piso
-    $('#edificio').on('change', function() {
-        var edificioId = $(this).val();
-        var $piso = $('#piso');
-        var $depto = $('#departamento');
-        
-        $piso.empty().append('<option value="">Cargando...</option>').prop('disabled', true);
-        $depto.empty().append('<option value="">Primero seleccione un piso...</option>').prop('disabled', true);
-        
-        if (!edificioId) {
-            $piso.empty().append('<option value="">Primero seleccione un edificio...</option>');
-            return;
-        }
-        
-        $.ajax({
-            url: 'api/solicitudes.php?action=cascada&tipo=pisos&edificio_id=' + edificioId,
-            method: 'GET',
-            dataType: 'json',
-            success: function(response) {
-                $piso.empty();
-                if (response.success && response.items && response.items.length > 0) {
-                    $piso.append('<option value="">Seleccione un piso...</option>');
-                    $.each(response.items, function(i, item) {
-                        $piso.append('<option value="' + item.piso_id + '">' + item.piso_nombre + '</option>');
-                    });
-                    $piso.prop('disabled', false);
-                } else {
-                    $piso.append('<option value="">Sin pisos disponibles</option>');
-                }
-            },
-            error: function() {
-                $piso.empty().append('<option value="">Error al cargar</option>');
-            }
-        });
-    });
-    
-    // Piso → Departamento
-    $('#piso').on('change', function() {
-        var pisoId = $(this).val();
         var $depto = $('#departamento');
         
         $depto.empty().append('<option value="">Cargando...</option>').prop('disabled', true);
+        $('#piso_id_hidden').val('0');
+        $('#edificio_id_hidden').val('0');
         
-        if (!pisoId) {
-            $depto.empty().append('<option value="">Primero seleccione un piso...</option>');
+        if (!obraId) {
+            $depto.empty().append('<option value="">Primero seleccione un proyecto...</option>');
             return;
         }
         
         $.ajax({
-            url: 'api/solicitudes.php?action=cascada&tipo=departamentos&piso_id=' + pisoId,
+            url: 'api/solicitudes.php?action=cascada&tipo=departamentos&obra_id=' + obraId,
             method: 'GET',
             dataType: 'json',
             success: function(response) {
@@ -158,7 +127,7 @@ $(document).ready(function() {
                 if (response.success && response.items && response.items.length > 0) {
                     $depto.append('<option value="">Seleccione su departamento...</option>');
                     $.each(response.items, function(i, item) {
-                        $depto.append('<option value="' + item.departamento_id + '">' + item.departamento_nombre + '</option>');
+                        $depto.append('<option value="' + item.departamento_id + '" data-piso-id="' + (item.piso_id || '') + '" data-edificio-id="' + (item.edificio_id || '') + '">' + item.departamento_nombre + '</option>');
                     });
                     $depto.prop('disabled', false);
                 } else {
@@ -169,6 +138,13 @@ $(document).ready(function() {
                 $depto.empty().append('<option value="">Error al cargar</option>');
             }
         });
+    });
+
+    // Al seleccionar departamento, guardar el piso_id y edificio_id correspondientes
+    $('#departamento').on('change', function() {
+        var $opt = $(this).find('option:selected');
+        $('#piso_id_hidden').val($opt.data('piso-id') || '0');
+        $('#edificio_id_hidden').val($opt.data('edificio-id') || '0');
     });
     
     // --- Selector de Categoría: subcategorías dinámicas ---
@@ -326,9 +302,9 @@ $(document).ready(function() {
         if (!rol) errors.push('Debe seleccionar un rol');
         if (!categoria) errors.push('Debe seleccionar una categoría');
         if (categoria !== 'otro' && !subcategoria) errors.push('Debe seleccionar una subcategoría');
+        if (categoria === 'otro' && !$('#detalle').val().trim()) errors.push('Debe describir detalladamente el problema cuando la categoría es "Otro"');
         
         // Determinar ubicación según rol
-        var ubicTipo = '';
         var ubicValor = '';
         if (rol === 'propietario') {
             var depto = $('#departamento').val();
@@ -340,26 +316,20 @@ $(document).ready(function() {
             if (!depto && !tieneEstac && !tieneBodega) {
                 errors.push('Debe seleccionar su departamento o indicar si el problema está en estacionamiento o bodega');
             } else {
-                // Construir ubicación con Obra > Edificio > Piso > Depto
-                var obraNombre = $('#obra option:selected').text();
-                var edificioNombre = $('#edificio option:selected').text();
-                var pisoNombre = $('#piso option:selected').text();
+                // Construir ubicación: solo Depto + Estacionamiento/Bodega
                 var deptoNombre = $('#departamento option:selected').text();
                 
-                ubicTipo = 'departamento';
-                ubicValor = obraNombre + ' > ' + edificioNombre + ' > ' + pisoNombre;
                 if (depto) {
-                    ubicValor += ' > ' + deptoNombre;
+                    ubicValor = deptoNombre;
                 }
                 if (tieneEstac) {
-                    ubicValor += ' | Estacionamiento' + (estacNum ? ' N° ' + estacNum : '');
+                    ubicValor += (ubicValor ? ' | ' : '') + 'Estacionamiento' + (estacNum ? ' N° ' + estacNum : '');
                 }
                 if (tieneBodega) {
-                    ubicValor += ' | Bodega' + (bodegaNum ? ' N° ' + bodegaNum : '');
+                    ubicValor += (ubicValor ? ' | ' : '') + 'Bodega' + (bodegaNum ? ' N° ' + bodegaNum : '');
                 }
             }
         } else if (rol === 'administrador') {
-            ubicTipo = 'area_comun';
             ubicValor = $('#area_comun option:selected').text();
             if (!$('#area_comun').val()) {
                 errors.push('Debe seleccionar un área común');
@@ -410,11 +380,10 @@ $(document).ready(function() {
         formData.append('email', $('#email').val());
         formData.append('telefono', $('#telefono').val());
         formData.append('rol', rol);
-        formData.append('ubicacion_tipo', ubicTipo);
         formData.append('ubicacion_valor', ubicValor);
         formData.append('obra_id', $('#obra').val() || '0');
-        formData.append('edificio_id', $('#edificio').val() || '0');
-        formData.append('piso_id', $('#piso').val() || '0');
+        formData.append('edificio_id', $('#edificio_id_hidden').val() || '0');
+        formData.append('piso_id', $('#piso_id_hidden').val() || '0');
         formData.append('departamento_id', $('#departamento').val() || '0');
         formData.append('categoria', categoria);
         formData.append('subcategoria', subcategoria);
@@ -425,6 +394,9 @@ $(document).ready(function() {
         for (var i = 0; i < uploadedFiles.length; i++) {
             formData.append('archivos[]', uploadedFiles[i]);
         }
+        
+        // Agregar token CSRF para seguridad
+        formData.append('csrf_token', $('meta[name="csrf-token"]').attr('content') || '');
         
         // Enviar a la API
         $.ajax({
@@ -439,6 +411,9 @@ $(document).ready(function() {
                         var solicitudId = response.id || '---';
                         var archivosMsg = response.archivos > 0 ? '<br><small>' + response.archivos + ' archivo(s) adjunto(s)</small>' : '';
                         
+                        // Ocultar mensajes de error previos
+                        $('#formErrors').hide().empty();
+                        
                         // Ocultar formulario y mostrar panel de éxito
                         $('#formSolicitud').fadeOut(300, function() {
                             var successHtml = '' +
@@ -447,6 +422,7 @@ $(document).ready(function() {
                                 '  <h2>¡Solicitud Ingresada con Éxito!</h2>' +
                                 '  <div class="success-detail">' +
                                 '    <p>Su solicitud ha sido registrada correctamente.</p>' +
+                                '    <p>La inmobiliaria se contactará con usted a la brevedad.</p>' +
                                 '    <div class="success-id">' +
                                 '      <span class="success-label">N° de Solicitud</span>' +
                                 '      <span class="success-number">#' + solicitudId + '</span>' +

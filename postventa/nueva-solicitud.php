@@ -6,6 +6,11 @@
 require_once 'includes/config.php';
 require_once 'includes/api_helper.php';
 
+// Generar token CSRF para llamadas AJAX (si no existe)
+if (!isset($_SESSION['api_csrf_token'])) {
+    $_SESSION['api_csrf_token'] = bin2hex(openssl_random_pseudo_bytes(32));
+}
+
 // Verificar sesión
 if (!isset($_SESSION['usuario_id'])) {
     header('Location: login.php');
@@ -161,35 +166,31 @@ include 'includes/header.php';
             </div>
             <div class="form-section-body">
                 
-                <!-- Selects en cascada: Obra → Edificio → Piso → Departamento -->
+                <!-- Selects en cascada: Tipo Edificio → Obra → Departamento -->
                 <div class="form-row">
                     <div class="form-group">
-                        <label for="obra">Proyecto <span class="required">*</span></label>
-                        <select id="obra" name="obra" class="form-control">
-                            <option value="">Seleccione una obra...</option>
+                        <label for="tipo_edificio">Tipo de Edificio <span class="required">*</span></label>
+                        <select id="tipo_edificio" name="tipo_edificio" class="form-control">
+                            <option value="">Seleccione un tipo...</option>
                         </select>
                     </div>
                     <div class="form-group">
-                        <label for="edificio">Edificio <span class="required">*</span></label>
-                        <select id="edificio" name="edificio" class="form-control" disabled>
-                            <option value="">Primero seleccione una obra...</option>
+                        <label for="obra">Proyecto <span class="required">*</span></label>
+                        <select id="obra" name="obra" class="form-control" disabled>
+                            <option value="">Primero seleccione un tipo de edificio...</option>
                         </select>
                     </div>
                 </div>
                 <div class="form-row">
-                    <div class="form-group">
-                        <label for="piso">Piso <span class="required">*</span></label>
-                        <select id="piso" name="piso" class="form-control" disabled>
-                            <option value="">Primero seleccione un edificio...</option>
-                        </select>
-                    </div>
                     <div class="form-group">
                         <label for="departamento">N° de Departamento <span class="required">*</span></label>
                         <select id="departamento" name="departamento" class="form-control" disabled>
-                            <option value="">Primero seleccione un piso...</option>
+                            <option value="">Primero seleccione un proyecto...</option>
                         </select>
                     </div>
                 </div>
+                <input type="hidden" id="piso_id_hidden" name="piso_id_hidden" value="0">
+                <input type="hidden" id="edificio_id_hidden" name="edificio_id_hidden" value="0">
                 
                 <!-- Campos para Propietario -->
                 <div id="propietario-fields" style="display:none;">

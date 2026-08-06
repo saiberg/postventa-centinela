@@ -4,6 +4,7 @@
  * Solo accesible para usuarios con perfil administrador
  */
 require_once 'includes/config.php';
+require_once 'includes/api_helper.php';
 
 // Verificar sesión y que sea admin
 if (!isset($_SESSION['usuario_id']) || !isset($_SESSION['es_admin']) || $_SESSION['es_admin'] != 1) {
@@ -11,51 +12,49 @@ if (!isset($_SESSION['usuario_id']) || !isset($_SESSION['es_admin']) || $_SESSIO
     exit;
 }
 
-// Obtener solicitudes de la BD
+// Obtener solicitudes a través de la API
 $solicitudes = [];
-$db = getDB();
-
-// Paginación
+$totalSolicitudes = 0;
+$totalPaginas = 1;
 $porPagina = 10;
 $paginaActual = isset($_GET['pagina']) ? max(1, (int)$_GET['pagina']) : 1;
-$offset = ($paginaActual - 1) * $porPagina;
 
-// Contar total
-$totalResult = $db->query("SELECT COUNT(*) as total FROM icentPventaSolicitudes");
-$totalRow = $totalResult->fetch_assoc();
-$totalSolicitudes = $totalRow['total'];
-$totalPaginas = ceil($totalSolicitudes / $porPagina);
+$apiResponse = apiCall('solicitudes.php?action=todas', array());
+$solicitudesRaw = ($apiResponse['success'] && isset($apiResponse['solicitudes'])) ? $apiResponse['solicitudes'] : array();
 
-$result = $db->query("SELECT s.id, s.created_at, s.rut, s.nombre, s.email, s.telefono, s.rol_solicitante, 
-                             s.ubicacion_valor, s.categoria, s.subcategoria, s.estado, s.detalle, s.dias_disponibles, s.urgencia,
-                             s.obra_id, o.obra_nombre
-                      FROM icentPventaSolicitudes s 
-                      LEFT JOIN obras o ON s.obra_id = o.obra_id
-                      ORDER BY s.created_at DESC
-                      LIMIT $porPagina OFFSET $offset");
+// Obtener obras para el filtro a través de la API
+$obrasFiltro = array();
+$apiObras = apiCall('solicitudes.php?action=obras', array());
+if ($apiObras['success'] && isset($apiObras['obras'])) {
+    $obrasFiltro = $apiObras['obras'];
+}
 
-while ($row = $result->fetch_assoc()) {
+// Formatear solicitudes para la vista
+foreach ($solicitudesRaw as $row) {
     $solicitudes[] = [
-        'id' => 'PC-' . date('Y') . '-' . str_pad($row['id'], 3, '0', STR_PAD_LEFT),
+        'id' => 'PC-' . date('Y', strtotime($row['created_at'])) . '-' . str_pad($row['id'], 3, '0', STR_PAD_LEFT),
         'id_num' => $row['id'],
         'fecha' => date('d/m/Y', strtotime($row['created_at'])),
         'rut' => $row['rut'],
         'nombre' => $row['nombre'],
         'email' => $row['email'],
         'telefono' => $row['telefono'],
-        'rol' => $row['rol_solicitante'] === 'administrador_edificio' ? 'Administrador' : 'Propietario',
+        'rol' => (isset($row['rol_solicitante']) && $row['rol_solicitante'] === 'administrador_edificio') ? 'Administrador' : 'Propietario',
         'ubicacion' => $row['ubicacion_valor'],
         'categoria' => $row['categoria'],
         'subcategoria' => $row['subcategoria'],
         'estado' => $row['estado'],
         'detalle' => $row['detalle'],
         'dias' => $row['dias_disponibles'],
-        'urgencia' => $row['urgencia'],
+        'urgencia' => isset($row['urgencia']) ? $row['urgencia'] : 0,
         'obra_id' => $row['obra_id'],
-        'obra_nombre' => $row['obra_nombre'],
+        'obra_nombre' => isset($row['obra_nombre']) ? $row['obra_nombre'] : '',
         'evidencia' => 0
     ];
 }
+
+$totalSolicitudes = count($solicitudes);
+$totalPaginas = ceil($totalSolicitudes / $porPagina);
 
 // Si no hay datos, usar datos de ejemplo
 if (empty($solicitudes)) {
@@ -239,15 +238,12 @@ include 'includes/header.php';
                 </select>
             </div>
             <div class="form-group">
-                <label for="filterObra"><i class="fas fa-building"></i> Obra</label>
+                <label for="filterObra"><i class="fas fa-building"></i> Proyecto</label>
                 <select id="filterObra" class="form-control">
-                    <option value="">Todas las obras</option>
-                    <?php
-                    $obrasResult = $db->query("SELECT obra_id, obra_nombre FROM obras WHERE inmobiliaria_id = " . INMOBILIARIA_ID . " AND obra_estado_sistema = 1 ORDER BY obra_nombre ASC");
-                    while ($obra = $obrasResult->fetch_assoc()) {
-                        echo '<option value="' . $obra['obra_id'] . '">' . htmlspecialchars($obra['obra_nombre']) . '</option>';
-                    }
-                    ?>
+                    <option value="">Todos los proyectos</option>
+                    <?php foreach ($obrasFiltro as $obra): ?>
+                        <option value="<?php echo $obra['obra_id']; ?>"><?php echo htmlspecialchars($obra['obra_nombre']); ?></option>
+                    <?php endforeach; ?>
                 </select>
             </div>
             <button type="button" class="btn btn-outline btn-sm" id="clearFilters">
@@ -265,6 +261,13 @@ include 'includes/header.php';
                     </button>
                 </div>
             </div>
+            <div style="background:#e7f1ff; border-left:4px solid #0d6efd; padding:10px 16px; margin:0; font-size:0.82rem; color:#004085;">
+                <i class="fas fa-info-circle"></i>
+                En la columna <strong>Acciones</strong> puede 
+                <span style="color:#28a745; font-weight:600;"><i class="fas fa-check"></i> Aprobar</span> o 
+                <span style="color:#dc3545; font-weight:600;"><i class="fas fa-times"></i> Rechazar</span> cada solicitud. 
+                <strong>Al aprobar, la solicitud será enviada al sistema de postventa de la constructora (SIGRO).</strong>
+            </div>
             <div class="card-body" style="padding: 0;">
                 <div class="table-container">
                     <table class="admin-table">
@@ -273,10 +276,9 @@ include 'includes/header.php';
                                 <th>N° Caso</th>
                                 <th>Fecha</th>
                                 <th>Cliente</th>
-                                <th>RUT</th>
                                 <th>Rol</th>
                                 <th>Categoría</th>
-                                <th>Obra</th>
+                                <th>Proyecto</th>
                                 <th>Ubicación</th>
                                 <th>Estado</th>
                                 <th>Prioridad</th>
@@ -311,7 +313,6 @@ include 'includes/header.php';
                                 <td><span class="case-id">#<?php echo $sol['id']; ?></span></td>
                                 <td><?php echo $sol['fecha']; ?></td>
                                 <td><strong><?php echo $sol['nombre']; ?></strong></td>
-                                <td><?php echo $sol['rut']; ?></td>
                                 <td><?php echo $sol['rol']; ?></td>
                                 <td><?php echo $sol['categoria']; ?></td>
                                 <td><?php echo htmlspecialchars($sol['obra_nombre'] ?: '—'); ?></td>
@@ -335,7 +336,7 @@ include 'includes/header.php';
                                             <i class="fas fa-eye"></i>
                                         </button>
                                         <?php if ($sol['estado'] === 'pendiente'): ?>
-                                        <button class="action-btn approve approve-case" data-case-id="<?php echo $sol['id_num']; ?>" title="Aprobar">
+                                        <button class="action-btn approve approve-case" data-case-id="<?php echo $sol['id_num']; ?>" title="Aprobar - Se enviará el caso al sistema de la constructora">
                                             <i class="fas fa-check"></i>
                                         </button>
                                         <button class="action-btn reject reject-case" data-case-id="<?php echo $sol['id_num']; ?>" title="Rechazar">
@@ -489,9 +490,44 @@ include 'includes/header.php';
                     </select>
                 </div>
                 
+                <div id="aprobadoWarning" style="display:none; background:#fff3cd; border:1px solid #ffc107; border-radius:8px; padding:12px; margin-top:12px;">
+                    <i class="fas fa-exclamation-triangle" style="color:#d39e00;"></i>
+                    <strong style="color:#856404;">Al aprobar, esta solicitud será enviada al sistema de la constructora (SIGRO).</strong>
+                </div>
+                
                 <div class="admin-comment-box mt-2">
                     <label style="font-size:0.82rem; font-weight:600; margin-bottom:4px; display:block;">Comentario interno (visible solo para administradores)</label>
                     <textarea placeholder="Agregar un comentario sobre este cambio de estado..."></textarea>
+                </div>
+            </div>
+            
+            <!-- Bitácora de Comunicaciones -->
+            <div class="detail-section">
+                <h3><i class="fas fa-comments"></i> Bitácora de Comunicaciones con el Cliente</h3>
+                
+                <!-- Historial de comunicaciones -->
+                <div id="comunicacionesList" style="max-height:250px; overflow-y:auto; margin-bottom:16px;">
+                    <span class="text-muted" style="font-size:0.85rem;">Cargando historial...</span>
+                </div>
+                
+                <!-- Formulario para registrar nueva comunicación -->
+                <div style="background:#f8f9fa; border:1px solid #dee2e6; border-radius:8px; padding:12px;">
+                    <label style="font-size:0.82rem; font-weight:600; margin-bottom:6px; display:block;">
+                        <i class="fas fa-plus-circle"></i> Registrar nueva comunicación
+                    </label>
+                    <div style="display:flex; gap:8px; margin-bottom:8px; flex-wrap:wrap;">
+                        <select id="comunicacionSubtipo" class="form-control" style="width:auto; min-width:170px; padding:6px 10px; font-size:0.82rem;">
+                            <option value="llamada">📞 Llamada telefónica</option>
+                            <option value="whatsapp">💬 WhatsApp</option>
+                            <option value="email">📧 Correo electrónico</option>
+                            <option value="presencial">🏢 Visita presencial</option>
+                            <option value="otro">📝 Otro medio</option>
+                        </select>
+                    </div>
+                    <textarea id="comunicacionTexto" class="form-control" rows="2" placeholder="Describa la comunicación con el cliente... (ej. 'Se llamó al cliente para coordinar visita, acordamos el jueves AM')" style="width:100%; margin-bottom:8px; font-size:0.82rem;"></textarea>
+                    <button class="btn btn-primary btn-sm" id="registrarComunicacionBtn">
+                        <i class="fas fa-save"></i> Registrar
+                    </button>
                 </div>
             </div>
             

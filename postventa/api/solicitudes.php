@@ -88,15 +88,6 @@ function apiError($message, $httpCode = 400, $context = array()) {
     exit;
 }
 
-// Seguridad: Referer
-$referer = isset($_SERVER['HTTP_REFERER']) ? $_SERVER['HTTP_REFERER'] : '';
-$host = isset($_SERVER['HTTP_HOST']) ? $_SERVER['HTTP_HOST'] : '';
-if (!empty($referer) && strpos($referer, $host) === false) {
-    http_response_code(403);
-    echo json_encode(['success' => false, 'message' => 'Acceso no autorizado']);
-    exit;
-}
-
 // Rate limiting
 function checkRateLimit($ip, $action, $maxRequests = 10, $windowSeconds = 60) {
     $logFile = __DIR__ . '/../logs/ratelimit_solicitudes.log';
@@ -181,7 +172,6 @@ switch ($action) {
         $email       = isset($_POST['email']) ? trim($_POST['email']) : '';
         $telefono    = isset($_POST['telefono']) ? trim($_POST['telefono']) : '';
         $rolSolic   = isset($_POST['rol']) ? $_POST['rol'] : 'propietario';
-        $ubicTipo    = isset($_POST['ubicacion_tipo']) ? $_POST['ubicacion_tipo'] : '';
         $ubicValor   = isset($_POST['ubicacion_valor']) ? trim($_POST['ubicacion_valor']) : '';
         $categoria   = isset($_POST['categoria']) ? $_POST['categoria'] : '';
         $subcategoria = isset($_POST['subcategoria']) ? $_POST['subcategoria'] : '';
@@ -196,7 +186,6 @@ switch ($action) {
         $errors = array();
         if (empty($categoria)) $errors[] = 'Debe seleccionar una categoría';
         if ($categoria !== 'otro' && empty($subcategoria)) $errors[] = 'Debe seleccionar una subcategoría';
-        if (empty($ubicTipo)) $errors[] = 'Debe seleccionar una ubicación';
         if (empty($dias)) $errors[] = 'Debe seleccionar al menos un día para visita';
         if (!in_array($rolSolic, array('propietario', 'administrador'))) $errors[] = 'Rol no válido';
         
@@ -237,14 +226,14 @@ switch ($action) {
         
         $db = getDB();
         $stmt = $db->prepare(
-            "INSERT INTO icentPventaSolicitudes 
-             (usuario_id, rut, nombre, email, telefono, rol_solicitante, ubicacion_tipo, ubicacion_valor, 
+            "INSERT INTO icentpventasolicitudes 
+             (usuario_id, ubicacion_valor, 
               categoria, subcategoria, detalle, dias_disponibles, estado, obra_id, edificio_id, piso_id, departamento_id, created_at) 
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pendiente', ?, ?, ?, ?, NOW())"
+             VALUES (?, ?, ?, ?, ?, ?, 'pendiente', ?, ?, ?, ?, NOW())"
         );
-        $stmt->bind_param('isssssssssssiiii', 
-            $usuarioId, $rut, $nombre, $email, $telefono, $rolSolic, 
-            $ubicTipo, $ubicValor, $categoriaLabel, $subcategoriaLabel, 
+        $stmt->bind_param('isssssiiii', 
+            $usuarioId, 
+            $ubicValor, $categoriaLabel, $subcategoriaLabel, 
             $detalle, $dias, $obraId, $edificioId, $pisoId, $deptoId
         );
         
@@ -252,7 +241,7 @@ switch ($action) {
             $solicitudId = $db->insert_id;
             
             // Insertar seguimiento inicial
-            $seg = $db->prepare("INSERT INTO icentPventaSeguimiento (solicitud_id, usuario_id, comentario, tipo, created_at) VALUES (?, ?, 'Solicitud ingresada al sistema.', 'sistema', NOW())");
+            $seg = $db->prepare("INSERT INTO icentpventaseguimiento (solicitud_id, usuario_id, comentario, tipo, created_at) VALUES (?, ?, 'Solicitud ingresada al sistema.', 'sistema', NOW())");
             $seg->bind_param('ii', $solicitudId, $usuarioId);
             $seg->execute();
             
@@ -323,7 +312,7 @@ switch ($action) {
                             : $tiposPermitidos[$fileType];
                         $rutaRel = 'uploads/' . $solicitudId . '/' . $uniqueName;
                         
-                        $archStmt = $db->prepare("INSERT INTO icentPventaArchivos (solicitud_id, nombre_original, nombre_archivo, tipo, tamano, ruta, created_at) VALUES (?, ?, ?, ?, ?, ?, NOW())");
+                        $archStmt = $db->prepare("INSERT INTO icentpventaarchivos (solicitud_id, nombre_original, nombre_archivo, tipo, tamano, ruta, created_at) VALUES (?, ?, ?, ?, ?, ?, NOW())");
                         $archStmt->bind_param('isssis', $solicitudId, $fileName, $uniqueName, $tipo, $fileSize, $rutaRel);
                         
                         if ($archStmt->execute()) {
@@ -409,11 +398,13 @@ switch ($action) {
         
         $db = getDB();
         $stmt = $db->prepare(
-            "SELECT id, created_at, categoria, subcategoria, ubicacion_valor, estado, 
-                    fecha_agendamiento, equipo_asignado, detalle, dias_disponibles
-             FROM icentPventaSolicitudes 
-             WHERE usuario_id = ? 
-             ORDER BY created_at DESC"
+            "SELECT s.id, s.created_at, s.categoria, s.subcategoria, s.ubicacion_valor, s.estado, 
+                    s.detalle, s.dias_disponibles,
+                    u.nombre, u.rut, u.email, u.telefono, u.rol as rol_solicitante
+             FROM icentpventasolicitudes s
+             LEFT JOIN icentpventausuarios u ON s.usuario_id = u.id
+             WHERE s.usuario_id = ? 
+             ORDER BY s.created_at DESC"
         );
         $stmt->bind_param('i', $_SESSION['usuario_id']);
         $stmt->execute();
@@ -437,12 +428,14 @@ switch ($action) {
         
         $db = getDB();
         $result = $db->query(
-            "SELECT s.id, s.created_at, s.rut, s.nombre, s.email, s.telefono, s.rol_solicitante,
+            "SELECT s.id, s.created_at,
                     s.ubicacion_valor, s.categoria, s.subcategoria, s.estado, s.detalle,
-                    s.dias_disponibles, s.fecha_agendamiento, s.equipo_asignado,
-                    u.nombre as nombre_usuario
-             FROM icentPventaSolicitudes s
-             LEFT JOIN icentPventaUsuarios u ON s.usuario_id = u.id
+                    s.dias_disponibles, s.urgencia, s.obra_id,
+                    o.obra_nombre,
+                    u.id as usuario_id, u.nombre as nombre, u.rut, u.email, u.telefono, u.rol as rol_solicitante
+             FROM icentpventasolicitudes s
+             LEFT JOIN obras o ON s.obra_id = o.obra_id
+             LEFT JOIN icentpventausuarios u ON s.usuario_id = u.id
              ORDER BY s.created_at DESC"
         );
         
@@ -459,14 +452,33 @@ switch ($action) {
                 SUM(CASE WHEN estado IN ('aprobado','agendado','en_proceso') THEN 1 ELSE 0 END) as en_proceso,
                 SUM(CASE WHEN estado = 'resuelto' THEN 1 ELSE 0 END) as resueltos,
                 SUM(CASE WHEN estado = 'no_corresponde' THEN 1 ELSE 0 END) as no_corresponde
-             FROM icentPventaSolicitudes"
+             FROM icentpventasolicitudes"
         );
         $stats = $statsResult->fetch_assoc();
+        
+        // Distribución por proyecto
+        $proyectoResult = $db->query(
+            "SELECT o.obra_nombre as proyecto,
+                    COUNT(*) as total,
+                    SUM(CASE WHEN s.estado = 'pendiente' THEN 1 ELSE 0 END) as pendientes,
+                    SUM(CASE WHEN s.estado = 'resuelto' THEN 1 ELSE 0 END) as resueltos,
+                    SUM(CASE WHEN s.estado IN ('aprobado','agendado','en_proceso') THEN 1 ELSE 0 END) as abiertos
+             FROM icentpventasolicitudes s
+             LEFT JOIN obras o ON s.obra_id = o.obra_id
+             GROUP BY s.obra_id, o.obra_nombre
+             ORDER BY total DESC"
+        );
+        $porProyecto = array();
+        while ($row = $proyectoResult->fetch_assoc()) {
+            $row['proyecto'] = $row['proyecto'] ?: 'Sin proyecto';
+            $porProyecto[] = $row;
+        }
         
         echo json_encode([
             'success'     => true,
             'solicitudes' => $solicitudes,
-            'stats'       => $stats
+            'stats'       => $stats,
+            'por_proyecto' => $porProyecto
         ]);
         break;
 
@@ -486,9 +498,9 @@ switch ($action) {
         
         $db = getDB();
         $stmt = $db->prepare(
-            "SELECT s.*, u.nombre as nombre_usuario 
-             FROM icentPventaSolicitudes s 
-             LEFT JOIN icentPventaUsuarios u ON s.usuario_id = u.id 
+            "SELECT s.*, u.nombre, u.rut, u.email, u.telefono, u.rol as rol_solicitante
+             FROM icentpventasolicitudes s 
+             LEFT JOIN icentpventausuarios u ON s.usuario_id = u.id 
              WHERE s.id = ? LIMIT 1"
         );
         $stmt->bind_param('i', $solicitudId);
@@ -509,7 +521,7 @@ switch ($action) {
         }
         
         // Obtener seguimiento
-        $seg = $db->prepare("SELECT * FROM icentPventaSeguimiento WHERE solicitud_id = ? ORDER BY created_at ASC");
+        $seg = $db->prepare("SELECT * FROM icentpventaseguimiento WHERE solicitud_id = ? ORDER BY created_at ASC");
         $seg->bind_param('i', $solicitudId);
         $seg->execute();
         $seguimiento = array();
@@ -537,10 +549,20 @@ switch ($action) {
         $solicitudId = isset($_POST['id']) ? (int)$_POST['id'] : 0;
         $comentario  = isset($_POST['comentario']) ? trim($_POST['comentario']) : '';
         $urgencia    = isset($_POST['urgencia']) ? (int)$_POST['urgencia'] : 0;
+        $casoCategoriaId = isset($_POST['caso_categoria_id']) ? (int)$_POST['caso_categoria_id'] : 0;
+        $casoCategoriaDetalleId = isset($_POST['caso_categoria_detalle_id']) ? (int)$_POST['caso_categoria_detalle_id'] : 0;
         
         // Validar urgencia (0 = normal, 1 = urgente)
         if (!in_array($urgencia, array(0, 1))) {
             $urgencia = 0;
+        }
+        
+        // Validar categorías requeridas
+        if ($casoCategoriaId <= 0) {
+            apiError('Debe seleccionar una Categoría para aprobar la solicitud.', 400);
+        }
+        if ($casoCategoriaDetalleId <= 0) {
+            apiError('Debe seleccionar un Detalle de categoría para aprobar la solicitud.', 400);
         }
         
         logger('DEBUG', "Aprobar solicitud - urgencia recibida", [
@@ -556,7 +578,12 @@ switch ($action) {
         $db = getDB();
         
         // Verificar que la solicitud existe y está pendiente
-        $check = $db->prepare("SELECT * FROM icentPventaSolicitudes WHERE id = ? AND estado = 'pendiente' LIMIT 1");
+        $check = $db->prepare(
+            "SELECT s.*, u.nombre, u.rut, u.email, u.telefono, u.rol as rol_solicitante
+             FROM icentpventasolicitudes s
+             LEFT JOIN icentpventausuarios u ON s.usuario_id = u.id
+             WHERE s.id = ? AND s.estado = 'pendiente' LIMIT 1"
+        );
         $check->bind_param('i', $solicitudId);
         $check->execute();
         $solicitud = $check->get_result()->fetch_assoc();
@@ -581,13 +608,13 @@ switch ($action) {
         $sigroUsuarioId = $rowUsuario['usuario_id'];
         
         // ========== 2. INSERT en tabla casos ==========
-        $detalleCaso = substr($solicitud['ubicacion_valor'] . ' - ' . $solicitud['categoria'] . ' - ' . $solicitud['subcategoria'] . ': ' . $solicitud['detalle'], 0, 500);
+        $detalleCaso = substr($solicitud['detalle'], 0, 500);
         
         // Variables para bind_param (deben ser referencias, no constantes)
         $sigroInmobiliariaId       = SIGRO_INMOBILIARIA_ID;
         $sigroObraId               = SIGRO_OBRA_ID;
-        $sigroCategoriaId          = SIGRO_CATEGORIA_ID;
-        $sigroCategoriaDetalleId   = SIGRO_CATEGORIA_DETALLE_ID;
+        $sigroCategoriaId          = $casoCategoriaId;          // Usar el valor seleccionado por el admin
+        $sigroCategoriaDetalleId   = $casoCategoriaDetalleId;  // Usar el valor seleccionado por el admin
         $sigroInmobiliariaUsuarioId = SIGRO_INMOBILIARIA_USUARIO_ID;
         $sigroUsuarioIdRef         = SIGRO_USUARIO_ID;
         
@@ -632,7 +659,7 @@ switch ($action) {
         
         // ========== 3. Copiar archivos adjuntos al caso SIGRO ==========
         $archivosCopiados = 0;
-        $archivos = $db->prepare("SELECT * FROM icentPventaArchivos WHERE solicitud_id = ?");
+        $archivos = $db->prepare("SELECT * FROM icentpventaarchivos WHERE solicitud_id = ?");
         $archivos->bind_param('i', $solicitudId);
         $archivos->execute();
         $archivosResult = $archivos->get_result();
@@ -673,8 +700,8 @@ switch ($action) {
         
         // ========== 4. Actualizar estado de la solicitud (solo si el caso se creó) ==========
         $comentarioAdmin = !empty($comentario) ? $comentario : 'Aprobado. Caso SIGRO #' . $casoId . ' creado.';
-        $update = $db->prepare("UPDATE icentPventaSolicitudes SET estado = 'aprobado', comentario_admin = ?, urgencia = ? WHERE id = ?");
-        $update->bind_param('sii', $comentarioAdmin, $urgencia, $solicitudId);
+        $update = $db->prepare("UPDATE icentpventasolicitudes SET estado = 'aprobado', comentario_admin = ?, urgencia = ?, caso_categoria_id = ?, caso_categoria_detalle_id = ? WHERE id = ?");
+        $update->bind_param('siiii', $comentarioAdmin, $urgencia, $casoCategoriaId, $casoCategoriaDetalleId, $solicitudId);
         $update->execute();
         
         logger('DEBUG', "UPDATE solicitud ejecutado", [
@@ -685,7 +712,7 @@ switch ($action) {
         
         // Insertar seguimiento
         $segComentario = 'Caso aprobado. Se creó caso #' . $casoId . ' en SIGRO.' . ($archivosCopiados > 0 ? ' Se adjuntaron ' . $archivosCopiados . ' archivo(s).' : '');
-        $seg = $db->prepare("INSERT INTO icentPventaSeguimiento (solicitud_id, usuario_id, comentario, tipo, created_at) VALUES (?, ?, ?, 'admin', NOW())");
+        $seg = $db->prepare("INSERT INTO icentpventaseguimiento (solicitud_id, usuario_id, comentario, tipo, created_at) VALUES (?, ?, ?, 'admin', NOW())");
         $seg->bind_param('iis', $solicitudId, $_SESSION['usuario_id'], $segComentario);
         $seg->execute();
         
@@ -747,7 +774,12 @@ switch ($action) {
         }
         
         $db = getDB();
-        $check = $db->prepare("SELECT * FROM icentPventaSolicitudes WHERE id = ? AND estado = 'pendiente' LIMIT 1");
+        $check = $db->prepare(
+            "SELECT s.*, u.nombre, u.rut, u.email, u.telefono, u.rol as rol_solicitante
+             FROM icentpventasolicitudes s
+             LEFT JOIN icentpventausuarios u ON s.usuario_id = u.id
+             WHERE s.id = ? AND s.estado = 'pendiente' LIMIT 1"
+        );
         $check->bind_param('i', $solicitudId);
         $check->execute();
         $solicitud = $check->get_result()->fetch_assoc();
@@ -755,11 +787,11 @@ switch ($action) {
             apiError('Solicitud no encontrada o ya fue procesada', 404, ['solicitud_id' => $solicitudId]);
         }
         
-        $update = $db->prepare("UPDATE icentPventaSolicitudes SET estado = 'no_corresponde' WHERE id = ?");
+        $update = $db->prepare("UPDATE icentpventasolicitudes SET estado = 'no_corresponde' WHERE id = ?");
         $update->bind_param('i', $solicitudId);
         $update->execute();
         
-        $seg = $db->prepare("INSERT INTO icentPventaSeguimiento (solicitud_id, usuario_id, comentario, tipo, created_at) VALUES (?, ?, 'Caso rechazado. No corresponde a postventa.', 'admin', NOW())");
+        $seg = $db->prepare("INSERT INTO icentpventaseguimiento (solicitud_id, usuario_id, comentario, tipo, created_at) VALUES (?, ?, 'Caso rechazado. No corresponde a postventa.', 'admin', NOW())");
         $seg->bind_param('ii', $solicitudId, $_SESSION['usuario_id']);
         $seg->execute();
         
@@ -812,7 +844,7 @@ switch ($action) {
         }
         
         $db = getDB();
-        $stmt = $db->prepare("SELECT * FROM icentPventaArchivos WHERE solicitud_id = ? ORDER BY id ASC");
+        $stmt = $db->prepare("SELECT * FROM icentpventaarchivos WHERE solicitud_id = ? ORDER BY id ASC");
         $stmt->bind_param('i', $solicitudId);
         $stmt->execute();
         $result = $stmt->get_result();
@@ -825,7 +857,7 @@ switch ($action) {
         echo json_encode(['success' => true, 'archivos' => $archivos]);
         break;
 
-    // ========== CASCADA: OBRAS / EDIFICIOS / PISOS / DEPARTAMENTOS ==========
+    // ========== CASCADA: TIPOS EDIFICIO / OBRAS / EDIFICIOS / PISOS / DEPARTAMENTOS ==========
     case 'cascada':
         if (!isset($_SESSION['usuario_id'])) {
             apiError('Debe iniciar sesión', 401);
@@ -834,10 +866,34 @@ switch ($action) {
         $tipo = isset($_GET['tipo']) ? $_GET['tipo'] : '';
         $db = getDB();
         
-        if ($tipo === 'obras') {
-            $stmt = $db->prepare("SELECT obra_id, obra_nombre FROM obras WHERE inmobiliaria_id = ? AND obra_estado_sistema = 1 ORDER BY obra_nombre ASC");
-            $stmt->bind_param('i', $inmobiliariaId);
+        if ($tipo === 'tipos_edificio') {
+            // Obtener todos los tipos de edificio
+            $result = $db->query("SELECT edificio_tipo_id, edificio_tipo_nombre FROM edificios_tipos ORDER BY edificio_tipo_nombre ASC");
+            $items = array();
+            while ($row = $result->fetch_assoc()) {
+                $items[] = $row;
+            }
+            echo json_encode(['success' => true, 'items' => $items]);
+            
+        } elseif ($tipo === 'obras') {
+            $tipoEdificioId = isset($_GET['tipo_edificio_id']) ? (int)$_GET['tipo_edificio_id'] : 0;
             $inmobiliariaId = (int)INMOBILIARIA_ID;
+            
+            if ($tipoEdificioId > 0) {
+                // Obras que tengan edificios del tipo seleccionado
+                $stmt = $db->prepare(
+                    "SELECT DISTINCT o.obra_id, o.obra_nombre 
+                     FROM obras o 
+                     INNER JOIN edificios e ON o.obra_id = e.obra_id 
+                     WHERE o.inmobiliaria_id = ? AND o.obra_estado_sistema = 1 AND e.edificio_estado = 1 AND e.edificio_tipo_id = ? 
+                     ORDER BY o.obra_nombre ASC"
+                );
+                $stmt->bind_param('ii', $inmobiliariaId, $tipoEdificioId);
+            } else {
+                // Sin filtro de tipo: todas las obras
+                $stmt = $db->prepare("SELECT obra_id, obra_nombre FROM obras WHERE inmobiliaria_id = ? AND obra_estado_sistema = 1 ORDER BY obra_nombre ASC");
+                $stmt->bind_param('i', $inmobiliariaId);
+            }
             $stmt->execute();
             $result = $stmt->get_result();
             $items = array();
@@ -879,13 +935,34 @@ switch ($action) {
             echo json_encode(['success' => true, 'items' => $items]);
             
         } elseif ($tipo === 'departamentos') {
-            $pisoId = isset($_GET['piso_id']) ? (int)$_GET['piso_id'] : 0;
-            if ($pisoId <= 0) {
-                echo json_encode(['success' => false, 'message' => 'piso_id requerido']);
+            $obraId = isset($_GET['obra_id']) ? (int)$_GET['obra_id'] : 0;
+            $edificioId = isset($_GET['edificio_id']) ? (int)$_GET['edificio_id'] : 0;
+            
+            if ($obraId > 0) {
+                // Todos los departamentos de todos los edificios de la obra
+                $stmt = $db->prepare(
+                    "SELECT d.departamento_id, d.departamento_nombre, d.piso_id, p.edificio_id
+                     FROM departamentos d 
+                     INNER JOIN pisos p ON d.piso_id = p.piso_id 
+                     INNER JOIN edificios e ON p.edificio_id = e.edificio_id 
+                     WHERE e.obra_id = ? AND d.departamento_tipo = 'Departamento' AND e.edificio_estado = 1 
+                     ORDER BY LOWER(d.departamento_nombre) ASC"
+                );
+                $stmt->bind_param('i', $obraId);
+            } elseif ($edificioId > 0) {
+                // Departamentos de un edificio específico (todos los pisos)
+                $stmt = $db->prepare(
+                    "SELECT d.departamento_id, d.departamento_nombre, d.piso_id, p.edificio_id
+                     FROM departamentos d 
+                     INNER JOIN pisos p ON d.piso_id = p.piso_id 
+                     WHERE p.edificio_id = ? AND d.departamento_tipo = 'Departamento' 
+                     ORDER BY p.piso_nombre ASC, LOWER(d.departamento_nombre) ASC"
+                );
+                $stmt->bind_param('i', $edificioId);
+            } else {
+                echo json_encode(['success' => false, 'message' => 'obra_id o edificio_id requerido']);
                 break;
             }
-            $stmt = $db->prepare("SELECT departamento_id, departamento_nombre FROM departamentos WHERE piso_id = ? AND departamento_tipo = 'Departamento' ORDER BY departamento_nombre ASC");
-            $stmt->bind_param('i', $pisoId);
             $stmt->execute();
             $result = $stmt->get_result();
             $items = array();
@@ -895,8 +972,118 @@ switch ($action) {
             echo json_encode(['success' => true, 'items' => $items]);
             
         } else {
-            echo json_encode(['success' => false, 'message' => 'Tipo no válido. Use: obras, edificios, pisos, departamentos']);
+            echo json_encode(['success' => false, 'message' => 'Tipo no válido. Use: tipos_edificio, obras, edificios, pisos, departamentos']);
         }
+        break;
+
+    // ========== OBTENER CATEGORÍAS SIGRO (CASCADA) ==========
+    case 'categorias':
+        if (!isset($_SESSION['usuario_id']) || !isset($_SESSION['usuario_rol']) || $_SESSION['usuario_rol'] !== 'admin_sistema') {
+            apiError('Acceso denegado', 403);
+        }
+        
+        $db = getDB();
+        $tipo = isset($_GET['tipo']) ? $_GET['tipo'] : 'categorias';
+        $categoriaId = isset($_GET['categoria_id']) ? (int)$_GET['categoria_id'] : 0;
+        
+        if ($tipo === 'categorias') {
+            // Obtener todas las categorías padre
+            $result = $db->query("SELECT caso_categoria_id, caso_categoria_nombre FROM casos_categorias ORDER BY caso_categoria_nombre ASC");
+            $items = array();
+            while ($row = $result->fetch_assoc()) {
+                $items[] = $row;
+            }
+            echo json_encode(['success' => true, 'items' => $items]);
+            
+        } elseif ($tipo === 'detalles' && $categoriaId > 0) {
+            // Obtener detalles de una categoría específica
+            $stmt = $db->prepare("SELECT caso_categoria_detalle_id, caso_categoria_detalle_nombre FROM casos_categorias_detalles WHERE caso_categoria_id = ? ORDER BY caso_categoria_detalle_nombre ASC");
+            $stmt->bind_param('i', $categoriaId);
+            $stmt->execute();
+            $result = $stmt->get_result();
+            $items = array();
+            while ($row = $result->fetch_assoc()) {
+                $items[] = $row;
+            }
+            echo json_encode(['success' => true, 'items' => $items]);
+            
+        } else {
+            echo json_encode(['success' => false, 'message' => 'Parámetros inválidos. Use tipo=categorias o tipo=detalles&categoria_id=X']);
+        }
+        break;
+
+    // ========== REGISTRAR COMUNICACIÓN CON EL CLIENTE ==========
+    case 'comunicacion':
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            apiError('Método no permitido', 405);
+        }
+        if (!isset($_SESSION['usuario_id']) || !isset($_SESSION['usuario_rol']) || $_SESSION['usuario_rol'] !== 'admin_sistema') {
+            apiError('Acceso denegado', 403);
+        }
+        
+        $solicitudId = isset($_POST['id']) ? (int)$_POST['id'] : 0;
+        $comentario  = isset($_POST['comentario']) ? trim($_POST['comentario']) : '';
+        $subtipo     = isset($_POST['subtipo']) ? trim($_POST['subtipo']) : 'otro';
+        
+        // Validar subtipo
+        $subtiposValidos = ['whatsapp', 'llamada', 'email', 'presencial', 'otro'];
+        if (!in_array($subtipo, $subtiposValidos)) {
+            $subtipo = 'otro';
+        }
+        
+        if ($solicitudId <= 0) {
+            apiError('ID de solicitud inválido', 400);
+        }
+        if (empty($comentario)) {
+            apiError('Debe ingresar un comentario sobre la comunicación.', 400);
+        }
+        
+        $db = getDB();
+        
+        // Verificar que la solicitud existe
+        $check = $db->prepare("SELECT id FROM icentpventasolicitudes WHERE id = ? LIMIT 1");
+        $check->bind_param('i', $solicitudId);
+        $check->execute();
+        if (!$check->get_result()->fetch_assoc()) {
+            apiError('Solicitud no encontrada', 404);
+        }
+        
+        // Guardar el tipo compuesto: "comunicacion:whatsapp", "comunicacion:llamada", etc.
+        $tipoCompuesto = 'comunicacion:' . $subtipo;
+        
+        $seg = $db->prepare("INSERT INTO icentpventaseguimiento (solicitud_id, usuario_id, comentario, tipo, created_at) VALUES (?, ?, ?, ?, NOW())");
+        $seg->bind_param('iiss', $solicitudId, $_SESSION['usuario_id'], $comentario, $tipoCompuesto);
+        
+        if ($seg->execute()) {
+            logger('INFO', "Comunicación registrada para solicitud #$solicitudId", [
+                'subtipo' => $subtipo,
+                'usuario_id' => $_SESSION['usuario_id']
+            ]);
+            
+            echo json_encode([
+                'success' => true,
+                'message' => 'Comunicación registrada correctamente.',
+                'id' => $db->insert_id
+            ]);
+        } else {
+            apiError('Error al registrar la comunicación: ' . $db->error, 500);
+        }
+        break;
+
+    // ========== LISTAR OBRAS PARA FILTROS ==========
+    case 'obras':
+        if (!isset($_SESSION['usuario_id']) || !isset($_SESSION['usuario_rol']) || $_SESSION['usuario_rol'] !== 'admin_sistema') {
+            apiError('Acceso denegado', 403);
+        }
+        
+        $db = getDB();
+        $result = $db->query("SELECT obra_id, obra_nombre FROM obras WHERE inmobiliaria_id = " . (int)INMOBILIARIA_ID . " AND obra_estado_sistema = 1 ORDER BY obra_nombre ASC");
+        $obras = array();
+        while ($row = $result->fetch_assoc()) {
+            $obras[] = $row;
+        }
+        
+        echo json_encode(['success' => true, 'obras' => $obras]);
         break;
 
     default:

@@ -48,8 +48,6 @@ foreach ($solicitudesRaw as $row) {
         'ubicacion'      => $row['ubicacion_valor'],
         'estado'         => $row['estado'],
         'estado_label'   => isset($estadoLabel[$row['estado']]) ? $estadoLabel[$row['estado']] : $row['estado'],
-        'agendamiento'   => isset($row['fecha_agendamiento']) && $row['fecha_agendamiento'] ? date('d/m/Y - H:i', strtotime($row['fecha_agendamiento'])) : null,
-        'equipo'         => isset($row['equipo_asignado']) ? $row['equipo_asignado'] : null,
         // Campos extra para vista admin
         'rut'            => isset($row['rut']) ? $row['rut'] : '',
         'nombre_solic'   => isset($row['nombre']) ? $row['nombre'] : '',
@@ -72,6 +70,12 @@ if ($isAdminSistema) {
     $enProceso = count(array_filter($casos, function($c) { return in_array($c['estado'], ['aprobado', 'agendado', 'en_proceso']); }));
     $resueltos = count(array_filter($casos, function($c) { return $c['estado'] === 'resuelto'; }));
     $noCorresponde = count(array_filter($casos, function($c) { return $c['estado'] === 'no_corresponde'; }));
+}
+
+// Distribución por proyecto (solo admin_sistema)
+$porProyecto = array();
+if ($isAdminSistema && isset($apiResponse['por_proyecto'])) {
+    $porProyecto = $apiResponse['por_proyecto'];
 }
 
 include 'includes/header.php';
@@ -138,6 +142,41 @@ include 'includes/header.php';
             </div>
         </div>
         
+        <!-- Distribución de Casos por Proyecto -->
+        <?php if ($isAdminSistema && !empty($porProyecto)): ?>
+        <div class="card cases-table-card" style="margin-bottom: 24px;">
+            <div class="card-header">
+                <h3><i class="fas fa-chart-bar"></i> Distribución de Casos por Proyecto</h3>
+            </div>
+            <div class="card-body" style="padding: 0;">
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Proyecto</th>
+                                <th style="text-align:center;">Total</th>
+                                <th style="text-align:center;">Pendientes</th>
+                                <th style="text-align:center;">Resueltos</th>
+                                <th style="text-align:center;">Abiertos</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php foreach ($porProyecto as $proy): ?>
+                            <tr>
+                                <td><strong><?php echo htmlspecialchars($proy['proyecto']); ?></strong></td>
+                                <td style="text-align:center;"><span class="badge badge-pending"><?php echo (int)$proy['total']; ?></span></td>
+                                <td style="text-align:center;"><?php echo (int)$proy['pendientes']; ?></td>
+                                <td style="text-align:center;"><?php echo (int)$proy['resueltos']; ?></td>
+                                <td style="text-align:center;"><?php echo (int)$proy['abiertos']; ?></td>
+                            </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        <?php endif; ?>
+        
         <!-- Tabla de Solicitudes -->
         <div class="card cases-table-card">
             <div class="card-header">
@@ -172,15 +211,12 @@ include 'includes/header.php';
                                 <th>Fecha</th>
                                 <?php if ($isAdminSistema): ?>
                                 <th>Solicitante</th>
-                                <th>RUT</th>
                                 <th>Rol</th>
                                 <?php endif; ?>
                                 <th>Categoría</th>
                                 <th>Subcategoría</th>
                                 <th>Ubicación</th>
                                 <th>Estado</th>
-                                <th>Agendamiento</th>
-                                <th>Equipo</th>
                                 <th>Acción</th>
                             </tr>
                         </thead>
@@ -191,7 +227,6 @@ include 'includes/header.php';
                                 <td><span class="case-date"><?php echo $caso['fecha']; ?></span></td>
                                 <?php if ($isAdminSistema): ?>
                                 <td><?php echo htmlspecialchars($caso['nombre_solic']); ?></td>
-                                <td><?php echo htmlspecialchars($caso['rut']); ?></td>
                                 <td><?php echo $caso['rol_solicitante'] === 'administrador_edificio' ? 'Admin. Edificio' : 'Propietario'; ?></td>
                                 <?php endif; ?>
                                 <td><?php echo $caso['categoria']; ?></td>
@@ -210,22 +245,6 @@ include 'includes/header.php';
                                     }
                                     ?>
                                     <span class="badge <?php echo $badgeClass; ?>"><?php echo $caso['estado_label']; ?></span>
-                                </td>
-                                <td>
-                                    <?php if ($caso['agendamiento']): ?>
-                                    <span class="case-schedule">
-                                        <i class="fas fa-calendar-alt"></i> <?php echo $caso['agendamiento']; ?>
-                                    </span>
-                                    <?php else: ?>
-                                    <span class="text-muted">—</span>
-                                    <?php endif; ?>
-                                </td>
-                                <td>
-                                    <?php if ($caso['equipo']): ?>
-                                    <span class="case-schedule"><strong><?php echo $caso['equipo']; ?></strong></span>
-                                    <?php else: ?>
-                                    <span class="text-muted">—</span>
-                                    <?php endif; ?>
                                 </td>
                                 <td>
                                     <a href="detalle-caso.php?id=<?php echo $caso['id_num']; ?>" class="btn btn-sm btn-outline">
