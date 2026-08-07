@@ -150,7 +150,7 @@ include 'includes/header.php';
             </div>
             <div class="card-body" style="padding: 0;">
                 <div class="table-container">
-                    <table>
+                    <table class="table-proyectos">
                         <thead>
                             <tr>
                                 <th>Proyecto</th>

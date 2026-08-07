@@ -129,6 +129,12 @@
     margin-top: 4px;
 }
 
+/* Tabla de distribución por proyecto */
+.table-proyectos th,
+.table-proyectos td {
+    font-size: 1.1rem;
+}
+
 /* Tabla de casos */
 .cases-table-card {
     margin-bottom: 28px;
