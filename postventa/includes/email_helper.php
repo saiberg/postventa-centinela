@@ -147,3 +147,22 @@ function enviarCorreoClienteRechazado($solicitudData) {
     
     return sendEmail($solicitudData['email'], $toName, $subject, $body);
 }
+
+/**
+ * Envía correo de recuperación de contraseña al usuario.
+ * @param array $data ['email', 'nombre', 'enlace']
+ */
+function enviarCorreoRecuperacion($data) {
+    $subject = EMAIL_RECUPERAR_ASUNTO;
+    $body    = str_replace(
+        array('{{NOMBRE}}', '{{ENLACE}}'),
+        array(
+            isset($data['nombre']) ? htmlspecialchars($data['nombre']) : 'Usuario',
+            isset($data['enlace']) ? htmlspecialchars($data['enlace']) : ''
+        ),
+        EMAIL_RECUPERAR_CUERPO
+    );
+    $toName  = isset($data['nombre']) ? $data['nombre'] : 'Usuario';
+    
+    return sendEmail($data['email'], $toName, $subject, $body);
+}

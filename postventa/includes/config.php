@@ -175,3 +175,20 @@ define('EMAIL_CLIENTE_RECHAZADO_CUERPO',
 </table>
 <p>Si tiene dudas sobre esta resolución, puede contactarnos a través de los canales oficiales.</p>
 <p>Saludos cordiales,<br>Equipo de Postventa Centinela</p>');
+
+// ============================================================
+// Plantilla: Correo de RECUPERACIÓN DE CONTRASEÑA
+// ============================================================
+define('EMAIL_RECUPERAR_ASUNTO', 'Recuperación de Contraseña - Postventa Centinela');
+define('EMAIL_RECUPERAR_CUERPO',
+'<h2>Estimado/a {{NOMBRE}},</h2>
+<p>Hemos recibido una solicitud para restablecer la contraseña de su cuenta en <strong>Postventa Centinela</strong>.</p>
+<p>Para continuar con el proceso, haga clic en el siguiente enlace:</p>
+<p style="text-align:center;margin:25px 0;">
+  <a href="{{ENLACE}}" style="background-color:#608418;color:white;padding:12px 30px;text-decoration:none;border-radius:5px;font-weight:bold;display:inline-block;">Restablecer mi Contraseña</a>
+</p>
+<p>O copie y pegue el siguiente enlace en su navegador:</p>
+<p style="word-break:break-all;color:#666;">{{ENLACE}}</p>
+<p><strong>Este enlace expirará en 1 hora.</strong></p>
+<p>Si usted no solicitó restablecer su contraseña, ignore este mensaje. Su cuenta permanece segura.</p>
+<p>Saludos cordiales,<br>Equipo de Postventa Centinela</p>');

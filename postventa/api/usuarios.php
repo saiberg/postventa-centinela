@@ -290,9 +290,110 @@ switch ($action) {
             $update = $db->prepare("UPDATE icentpventausuarios SET token_recuperacion = ?, token_expiracion = ? WHERE id = ?");
             $update->bind_param('ssi', $token, $expiracion, $user['id']);
             $update->execute();
+            
+            // Enviar correo de recuperación
+            require_once __DIR__ . '/../includes/email_helper.php';
+            
+            $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https://' : 'http://';
+            $host = $_SERVER['HTTP_HOST'];
+            $enlace = $protocol . $host . rtrim(dirname(BASE_URL), '/') . '/recuperar.php?token=' . $token;
+            
+            $emailData = array(
+                'email'  => $email,
+                'nombre' => $user['nombre'],
+                'enlace' => $enlace
+            );
+            
+            $resultadoEmail = enviarCorreoRecuperacion($emailData);
+            
+            if (!$resultadoEmail['success']) {
+                logger('ERROR', 'Error al enviar correo de recuperación', [
+                    'email' => $email,
+                    'error' => $resultadoEmail['message']
+                ]);
+            }
         }
         
+        // Siempre respondemos igual por seguridad (no revelar si el email existe)
         echo json_encode(['success' => true, 'message' => 'Si el correo está registrado, recibirás un enlace.']);
+        break;
+
+    // ========== VERIFICAR TOKEN DE RECUPERACIÓN ==========
+    case 'verificar_token':
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            echo json_encode(['success' => false, 'message' => 'Método no permitido']);
+            exit;
+        }
+        
+        $token = isset($_POST['token']) ? trim($_POST['token']) : '';
+        if (empty($token)) {
+            echo json_encode(['success' => false, 'message' => 'Token no proporcionado']);
+            exit;
+        }
+        
+        $db = getDB();
+        $stmt = $db->prepare(
+            "SELECT id, email FROM icentpventausuarios 
+             WHERE token_recuperacion = ? AND token_expiracion > NOW() AND activo = 1 LIMIT 1"
+        );
+        $stmt->bind_param('s', $token);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        
+        if ($result->num_rows === 0) {
+            echo json_encode(['success' => false, 'message' => 'El enlace de recuperación no es válido o ha expirado.']);
+            exit;
+        }
+        
+        $user = $result->fetch_assoc();
+        echo json_encode(['success' => true, 'email' => $user['email']]);
+        break;
+
+    // ========== CAMBIAR CONTRASEÑA CON TOKEN ==========
+    case 'cambiar_password_token':
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            echo json_encode(['success' => false, 'message' => 'Método no permitido']);
+            exit;
+        }
+        
+        $token    = isset($_POST['token']) ? trim($_POST['token']) : '';
+        $password = isset($_POST['password']) ? $_POST['password'] : '';
+        
+        if (empty($token) || empty($password)) {
+            echo json_encode(['success' => false, 'message' => 'Token y contraseña son obligatorios']);
+            exit;
+        }
+        if (strlen($password) < 6) {
+            echo json_encode(['success' => false, 'message' => 'La contraseña debe tener al menos 6 caracteres']);
+            exit;
+        }
+        
+        $db = getDB();
+        $stmt = $db->prepare(
+            "SELECT id FROM icentpventausuarios 
+             WHERE token_recuperacion = ? AND token_expiracion > NOW() AND activo = 1 LIMIT 1"
+        );
+        $stmt->bind_param('s', $token);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        
+        if ($result->num_rows === 0) {
+            echo json_encode(['success' => false, 'message' => 'El enlace de recuperación no es válido o ha expirado.']);
+            exit;
+        }
+        
+        $user = $result->fetch_assoc();
+        $hashed = password_hash($password, PASSWORD_BCRYPT);
+        
+        $update = $db->prepare(
+            "UPDATE icentpventausuarios SET password = ?, token_recuperacion = NULL, token_expiracion = NULL WHERE id = ?"
+        );
+        $update->bind_param('si', $hashed, $user['id']);
+        $update->execute();
+        
+        logger('INFO', 'Contraseña restablecida mediante token', ['user_id' => $user['id']]);
+        
+        echo json_encode(['success' => true, 'message' => 'Contraseña restablecida exitosamente.']);
         break;
 
     // ========== PERFIL (requiere sesión) ==========
