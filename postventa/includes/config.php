@@ -171,6 +171,7 @@ define('EMAIL_CLIENTE_RECHAZADO_CUERPO',
 <tr><td style="padding:8px;border:1px solid #ddd;background:#f5f5f5"><strong>Categoría:</strong></td><td style="padding:8px;border:1px solid #ddd">{{CATEGORIA}}</td></tr>
 <tr><td style="padding:8px;border:1px solid #ddd;background:#f5f5f5"><strong>Subcategoría:</strong></td><td style="padding:8px;border:1px solid #ddd">{{SUBCATEGORIA}}</td></tr>
 <tr><td style="padding:8px;border:1px solid #ddd;background:#f5f5f5"><strong>Ubicación:</strong></td><td style="padding:8px;border:1px solid #ddd">{{UBICACION}}</td></tr>
+<tr><td style="padding:8px;border:1px solid #ddd;background:#f5f5f5"><strong>Motivo de rechazo:</strong></td><td style="padding:8px;border:1px solid #ddd">{{MOTIVO_RECHAZO}}</td></tr>
 <tr><td style="padding:8px;border:1px solid #ddd;background:#f5f5f5"><strong>Fecha:</strong></td><td style="padding:8px;border:1px solid #ddd">{{FECHA}}</td></tr>
 </table>
 <p>Si tiene dudas sobre esta resolución, puede contactarnos a través de los canales oficiales.</p>

@@ -70,6 +70,13 @@
 }
 
 .admin-table .case-row {
+    cursor: default;
+}
+
+.admin-table .case-row td:last-child,
+.admin-table .case-row .action-buttons,
+.admin-table .case-row .action-buttons button,
+.admin-table .case-row .action-buttons .action-btn {
     cursor: pointer;
 }
 

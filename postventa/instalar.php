@@ -49,6 +49,7 @@ $sqlSolicitudes = "CREATE TABLE IF NOT EXISTS `icentPventaSolicitudes` (
     `fecha_agendamiento` DATETIME DEFAULT NULL,
     `equipo_asignado` VARCHAR(150) DEFAULT NULL,
     `comentario_admin` TEXT DEFAULT NULL,
+    `motivo_rechazo` TEXT DEFAULT NULL,
     `urgencia` TINYINT(1) NOT NULL DEFAULT 0,
     `obra_id` INT(11) DEFAULT NULL,
     `edificio_id` INT(11) DEFAULT NULL,
@@ -66,6 +67,14 @@ $sqlSolicitudes = "CREATE TABLE IF NOT EXISTS `icentPventaSolicitudes` (
 
 if (!$conn->query($sqlSolicitudes)) {
     die('<div class="alert alert-danger">Error al crear icentPventaSolicitudes: ' . $conn->error . '</div>');
+}
+
+// Migración para instalaciones existentes
+$columnaMotivo = $conn->query("SHOW COLUMNS FROM icentPventaSolicitudes LIKE 'motivo_rechazo'");
+if ($columnaMotivo && $columnaMotivo->num_rows === 0) {
+    if (!$conn->query("ALTER TABLE icentPventaSolicitudes ADD COLUMN motivo_rechazo TEXT DEFAULT NULL AFTER comentario_admin")) {
+        die('<div class="alert alert-danger">Error al agregar motivo_rechazo: ' . $conn->error . '</div>');
+    }
 }
 
 // ========== TABLA: icentPventaArchivos ==========

@@ -38,7 +38,11 @@ if ($isAdminSistema) {
 }
 
 $casos = array();
+$proyectosDisponibles = array();
 foreach ($solicitudesRaw as $row) {
+    $proyectoNombre = isset($row['obra_nombre']) && trim($row['obra_nombre']) !== '' ? trim($row['obra_nombre']) : 'Sin proyecto';
+    $proyectosDisponibles[] = $proyectoNombre;
+
     $casos[] = array(
         'id'             => 'PC-' . date('Y', strtotime($row['created_at'])) . '-' . str_pad($row['id'], 3, '0', STR_PAD_LEFT),
         'id_num'         => $row['id'],
@@ -48,6 +52,7 @@ foreach ($solicitudesRaw as $row) {
         'ubicacion'      => $row['ubicacion_valor'],
         'estado'         => $row['estado'],
         'estado_label'   => isset($estadoLabel[$row['estado']]) ? $estadoLabel[$row['estado']] : $row['estado'],
+        'proyecto'       => $proyectoNombre,
         // Campos extra para vista admin
         'rut'            => isset($row['rut']) ? $row['rut'] : '',
         'nombre_solic'   => isset($row['nombre']) ? $row['nombre'] : '',
@@ -56,6 +61,7 @@ foreach ($solicitudesRaw as $row) {
         'rol_solicitante'=> isset($row['rol_solicitante']) ? $row['rol_solicitante'] : ''
     );
 }
+$proyectosDisponibles = array_values(array_unique($proyectosDisponibles));
 
 // Estadísticas
 if ($isAdminSistema) {
@@ -186,6 +192,12 @@ include 'includes/header.php';
                         <i class="fas fa-search"></i>
                         <input type="text" id="tableSearch" placeholder="Buscar solicitudes...">
                     </div>
+                    <select class="filter-select" id="filterProyecto">
+                        <option value="">Todos los proyectos</option>
+                        <?php foreach ($proyectosDisponibles as $proyecto): ?>
+                        <option value="<?php echo htmlspecialchars($proyecto); ?>"><?php echo htmlspecialchars($proyecto); ?></option>
+                        <?php endforeach; ?>
+                    </select>
                     <select class="filter-select" id="filterEstado">
                         <option value="">Todos los estados</option>
                         <option value="pendiente">Pendiente</option>
@@ -216,13 +228,14 @@ include 'includes/header.php';
                                 <th>Categoría</th>
                                 <th>Subcategoría</th>
                                 <th>Ubicación</th>
+                                <th>Proyecto</th>
                                 <th>Estado</th>
                                 <th>Acción</th>
                             </tr>
                         </thead>
                         <tbody>
                             <?php foreach ($casos as $caso): ?>
-                            <tr class="case-row" data-estado="<?php echo $caso['estado']; ?>">
+                            <tr class="case-row" data-estado="<?php echo $caso['estado']; ?>" data-proyecto="<?php echo htmlspecialchars($caso['proyecto']); ?>">
                                 <td><span class="case-id">#<?php echo $caso['id']; ?></span></td>
                                 <td><span class="case-date"><?php echo $caso['fecha']; ?></span></td>
                                 <?php if ($isAdminSistema): ?>
@@ -232,6 +245,7 @@ include 'includes/header.php';
                                 <td><?php echo $caso['categoria']; ?></td>
                                 <td><?php echo $caso['subcategoria']; ?></td>
                                 <td><?php echo $caso['ubicacion']; ?></td>
+                                <td><?php echo htmlspecialchars($caso['proyecto']); ?></td>
                                 <td>
                                     <?php
                                     $badgeClass = '';
@@ -246,7 +260,7 @@ include 'includes/header.php';
                                     ?>
                                     <span class="badge <?php echo $badgeClass; ?>"><?php echo $caso['estado_label']; ?></span>
                                 </td>
-                                <td>
+                                <td class="case-action-cell">
                                     <a href="detalle-caso.php?id=<?php echo $caso['id_num']; ?>" class="btn btn-sm btn-outline">
                                         <i class="fas fa-eye"></i> Ver
                                     </a>
@@ -255,7 +269,7 @@ include 'includes/header.php';
                             <?php endforeach; ?>
                             <?php if (empty($casos)): ?>
                             <tr>
-                                <td colspan="<?php echo $isAdminSistema ? '12' : '9'; ?>" style="text-align:center; padding: 40px; color: #888;">
+                                <td colspan="<?php echo $isAdminSistema ? '10' : '8'; ?>" style="text-align:center; padding: 40px; color: #888;">
                                     <i class="fas fa-inbox" style="font-size: 2rem; display: block; margin-bottom: 10px;"></i>
                                     No hay solicitudes registradas.
                                 </td>
@@ -292,23 +306,27 @@ include 'includes/header.php';
 <script>
 // Filtros de tabla
 $(document).ready(function() {
-    $('#filterEstado').on('change', function() {
-        var estado = $(this).val();
-        if (estado) {
-            $('.case-row').hide();
-            $('.case-row[data-estado="' + estado + '"]').show();
-        } else {
-            $('.case-row').show();
-        }
-    });
-    
-    $('#tableSearch').on('keyup', function() {
-        var search = $(this).val().toLowerCase();
+    function aplicarFiltros() {
+        var estado = $('#filterEstado').val();
+        var proyecto = $('#filterProyecto').val();
+        var search = $('#tableSearch').val().toLowerCase();
+
         $('.case-row').each(function() {
-            var text = $(this).text().toLowerCase();
-            $(this).toggle(text.indexOf(search) > -1);
+            var $row = $(this);
+            var rowEstado = $row.data('estado');
+            var rowProyecto = ($row.data('proyecto') || '').toLowerCase();
+            var text = $row.text().toLowerCase();
+
+            var coincideEstado = !estado || rowEstado === estado;
+            var coincideProyecto = !proyecto || rowProyecto === proyecto.toLowerCase();
+            var coincideBusqueda = !search || text.indexOf(search) > -1;
+
+            $row.toggle(coincideEstado && coincideProyecto && coincideBusqueda);
         });
-    });
+    }
+
+    $('#filterEstado, #filterProyecto').on('change', aplicarFiltros);
+    $('#tableSearch').on('keyup', aplicarFiltros);
 });
 </script>
 

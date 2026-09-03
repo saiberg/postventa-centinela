@@ -220,6 +220,18 @@
     font-size: 0.82rem;
 }
 
+/* Evitar mano en toda la fila y dejarla solo en la columna de acción */
+table tbody tr.case-row {
+    cursor: default;
+}
+
+.case-row td:last-child,
+.case-row .case-action-cell,
+.case-row .case-action-cell a,
+.case-row .case-action-cell button {
+    cursor: pointer;
+}
+
 /* Responsive */
 @media (max-width: 992px) {
     .stats-grid {

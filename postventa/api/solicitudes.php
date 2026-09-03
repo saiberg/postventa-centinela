@@ -399,9 +399,15 @@ switch ($action) {
         $db = getDB();
         $stmt = $db->prepare(
             "SELECT s.id, s.created_at, s.categoria, s.subcategoria, s.ubicacion_valor, s.estado, 
-                    s.detalle, s.dias_disponibles,
+                    s.detalle, s.dias_disponibles, s.obra_id, s.motivo_rechazo,
+                  COALESCE(o.obra_nombre, obra_departamento.obra_nombre) AS obra_nombre,
                     u.nombre, u.rut, u.email, u.telefono, u.rol as rol_solicitante
              FROM icentpventasolicitudes s
+             LEFT JOIN obras o ON s.obra_id = o.obra_id
+              LEFT JOIN departamentos d ON s.departamento_id = d.departamento_id
+              LEFT JOIN pisos p ON d.piso_id = p.piso_id
+             LEFT JOIN edificios e ON COALESCE(NULLIF(s.edificio_id, 0), p.edificio_id) = e.edificio_id
+              LEFT JOIN obras obra_departamento ON e.obra_id = obra_departamento.obra_id
              LEFT JOIN icentpventausuarios u ON s.usuario_id = u.id
              WHERE s.usuario_id = ? 
              ORDER BY s.created_at DESC"
@@ -430,7 +436,7 @@ switch ($action) {
         $result = $db->query(
             "SELECT s.id, s.created_at,
                     s.ubicacion_valor, s.categoria, s.subcategoria, s.estado, s.detalle,
-                    s.dias_disponibles, s.urgencia, s.obra_id,
+                    s.dias_disponibles, s.urgencia, s.obra_id, s.motivo_rechazo,
                     o.obra_nombre,
                     u.id as usuario_id, u.nombre as nombre, u.rut, u.email, u.telefono, u.rol as rol_solicitante
              FROM icentpventasolicitudes s
@@ -769,8 +775,12 @@ switch ($action) {
         }
         
         $solicitudId = isset($_POST['id']) ? (int)$_POST['id'] : 0;
+        $motivoRechazo = isset($_POST['motivo_rechazo']) ? trim($_POST['motivo_rechazo']) : '';
         if ($solicitudId <= 0) {
             apiError('ID de solicitud inválido', 400);
+        }
+        if ($motivoRechazo === '') {
+            apiError('Debe ingresar un motivo de rechazo', 400);
         }
         
         $db = getDB();
@@ -787,12 +797,13 @@ switch ($action) {
             apiError('Solicitud no encontrada o ya fue procesada', 404, ['solicitud_id' => $solicitudId]);
         }
         
-        $update = $db->prepare("UPDATE icentpventasolicitudes SET estado = 'no_corresponde' WHERE id = ?");
-        $update->bind_param('i', $solicitudId);
+        $update = $db->prepare("UPDATE icentpventasolicitudes SET estado = 'no_corresponde', motivo_rechazo = ? WHERE id = ?");
+        $update->bind_param('si', $motivoRechazo, $solicitudId);
         $update->execute();
         
-        $seg = $db->prepare("INSERT INTO icentpventaseguimiento (solicitud_id, usuario_id, comentario, tipo, created_at) VALUES (?, ?, 'Caso rechazado. No corresponde a postventa.', 'admin', NOW())");
-        $seg->bind_param('ii', $solicitudId, $_SESSION['usuario_id']);
+        $comentarioSeguimiento = 'Caso rechazado. Motivo: ' . $motivoRechazo;
+        $seg = $db->prepare("INSERT INTO icentpventaseguimiento (solicitud_id, usuario_id, comentario, tipo, created_at) VALUES (?, ?, ?, 'admin', NOW())");
+        $seg->bind_param('iis', $solicitudId, $_SESSION['usuario_id'], $comentarioSeguimiento);
         $seg->execute();
         
         logger('INFO', "Solicitud #$solicitudId rechazada (no corresponde)");
@@ -813,6 +824,7 @@ switch ($action) {
             'subcategoria'  => $solicitud['subcategoria'],
             'ubicacion'     => $solicitud['ubicacion_valor'],
             'detalle'       => $solicitud['detalle'],
+            'motivo_rechazo' => $motivoRechazo,
             'dias'          => $solicitud['dias_disponibles'],
             'fecha'         => date('d/m/Y H:i'),
             'url_base'      => $urlBase,

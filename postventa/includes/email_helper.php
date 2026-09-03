@@ -47,6 +47,7 @@ function replacePlaceholders($template, $data) {
         '{{SUBCATEGORIA}}'  => isset($data['subcategoria']) ? htmlspecialchars($data['subcategoria']) : '',
         '{{UBICACION}}'     => isset($data['ubicacion']) ? htmlspecialchars($data['ubicacion']) : '',
         '{{DETALLE}}'       => isset($data['detalle']) ? nl2br(htmlspecialchars($data['detalle'])) : '',
+        '{{MOTIVO_RECHAZO}}' => isset($data['motivo_rechazo']) ? nl2br(htmlspecialchars($data['motivo_rechazo'])) : '',
         '{{DIAS}}'          => isset($data['dias']) ? htmlspecialchars($data['dias']) : '',
         '{{FECHA}}'         => isset($data['fecha']) ? htmlspecialchars($data['fecha']) : '',
         '{{URL_BASE}}'      => isset($data['url_base']) ? htmlspecialchars($data['url_base']) : '',

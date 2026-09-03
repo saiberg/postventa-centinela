@@ -263,16 +263,37 @@ $(document).ready(function() {
         var caseId = $(this).data('case-id');
         var $btn = $(this);
         var $row = $btn.closest('tr');
+        var motivoRechazo = '';
         
-        showConfirm(
-            '¿Confirmas el <strong>rechazo</strong> del caso <strong>#' + caseId + '</strong>?<br><small>Esta acción marcará el caso como "No Corresponde".</small>',
+        showConfirmAdvanced(
+            '<div style="text-align:center; margin-bottom:12px;">' +
+            '<i class="fas fa-times-circle" style="color:#dc3545; font-size:2rem; display:block; margin-bottom:10px;"></i>' +
+            '<strong style="font-size:1rem;">¿Confirmas el rechazo del caso #' + caseId + '?</strong>' +
+            '<br><small>Esta acción marcará el caso como "No Corresponde".</small>' +
+            '</div>' +
+            '<div style="text-align:left;">' +
+            '<label style="display:block; font-weight:600; font-size:0.85rem; margin-bottom:4px;">Motivo de rechazo <span style="color:red;">*</span></label>' +
+            '<textarea class="form-control motivo-rechazo-input" rows="4" placeholder="Ingrese el motivo por el que esta solicitud es rechazada..."></textarea>' +
+            '<div class="rechazo-validation-msg" style="color:#d9534f; font-size:0.8rem; margin-top:8px; display:none;"></div>' +
+            '</div>',
+            function($dialog) {
+                var valor = $dialog.find('.motivo-rechazo-input').val().trim();
+                var $msg = $dialog.find('.rechazo-validation-msg');
+                if (!valor) {
+                    $msg.text('Debe ingresar un motivo de rechazo.').show();
+                    $dialog.find('.motivo-rechazo-input').focus();
+                    return false;
+                }
+                motivoRechazo = valor;
+                return true;
+            },
             function() {
                 $btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i>');
                 
                 $.ajax({
                     url: 'api/solicitudes.php?action=rechazar',
                     method: 'POST',
-                    data: { id: caseId },
+                    data: { id: caseId, motivo_rechazo: motivoRechazo },
                     dataType: 'json',
                     success: function(response) {
                         if (response.success) {
