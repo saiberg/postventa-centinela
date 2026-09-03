@@ -13,7 +13,7 @@ if (!isset($_SESSION['usuario_id'])) {
 
 // El admin_sistema no tiene solicitudes propias
 if (isset($_SESSION['usuario_rol']) && $_SESSION['usuario_rol'] === 'admin_sistema') {
-    header('Location: dashboard.php');
+    header('Location: dashboard2.php');
     exit;
 }
 
@@ -72,16 +72,12 @@ $estadoLabels = array(
     'pendiente'      => 'Pendiente de Revisión',
     'aprobado'       => 'Aprobado',
     'no_corresponde' => 'No Corresponde',
-    'agendado'       => 'Visita Agendada',
-    'en_proceso'     => 'En Proceso',
     'resuelto'       => 'Resuelto'
 );
 $estadoIcons = array(
     'pendiente'      => 'fa-clock',
     'aprobado'       => 'fa-check',
     'no_corresponde' => 'fa-times-circle',
-    'agendado'       => 'fa-calendar-check',
-    'en_proceso'     => 'fa-spinner',
     'resuelto'       => 'fa-check-circle'
 );
 
@@ -358,8 +354,6 @@ include 'includes/header.php';
                             <option value="">Todos los estados</option>
                             <option value="pendiente" <?php echo $filtroEstado === 'pendiente' ? 'selected' : ''; ?>>Pendiente</option>
                             <option value="aprobado" <?php echo $filtroEstado === 'aprobado' ? 'selected' : ''; ?>>Aprobado</option>
-                            <option value="agendado" <?php echo $filtroEstado === 'agendado' ? 'selected' : ''; ?>>Agendado</option>
-                            <option value="en_proceso" <?php echo $filtroEstado === 'en_proceso' ? 'selected' : ''; ?>>En Proceso</option>
                             <option value="resuelto" <?php echo $filtroEstado === 'resuelto' ? 'selected' : ''; ?>>Resuelto</option>
                             <option value="no_corresponde" <?php echo $filtroEstado === 'no_corresponde' ? 'selected' : ''; ?>>No Corresponde</option>
                         </select>
@@ -405,8 +399,6 @@ include 'includes/header.php';
             switch ($sol['estado']) {
                 case 'pendiente': $markerClass = 'pending'; break;
                 case 'aprobado': $markerClass = 'approved'; break;
-                case 'agendado': $markerClass = 'scheduled'; break;
-                case 'en_proceso': $markerClass = 'in-progress'; break;
                 case 'resuelto': $markerClass = 'resolved'; break;
                 case 'no_corresponde': $markerClass = 'rejected'; break;
             }
@@ -443,8 +435,6 @@ include 'includes/header.php';
                                 switch ($sol['estado']) {
                                     case 'pendiente': $badgeClass = 'badge-pending'; break;
                                     case 'aprobado': $badgeClass = 'badge-approved'; break;
-                                    case 'agendado': $badgeClass = 'badge-scheduled'; break;
-                                    case 'en_proceso': $badgeClass = 'badge-in-progress'; break;
                                     case 'resuelto': $badgeClass = 'badge-resolved'; break;
                                     case 'no_corresponde': $badgeClass = 'badge-rejected'; break;
                                 }

@@ -14,13 +14,13 @@ $isAdminSistema = isset($_SESSION['usuario_rol']) && $_SESSION['usuario_rol'] ==
 
 $estadoLabel = array(
     'pendiente' => 'Pendiente', 'aprobado' => 'Aprobado', 'no_corresponde' => 'No Corresponde',
-    'agendado' => 'Agendado', 'en_proceso' => 'En Proceso', 'resuelto' => 'Resuelto'
+    'resuelto' => 'Resuelto'
 );
 
 if ($isAdminSistema) {
     $apiResponse = apiCall('solicitudes.php?action=todas', array());
     $solicitudesRaw = ($apiResponse['success'] && isset($apiResponse['solicitudes'])) ? $apiResponse['solicitudes'] : array();
-    $globalStats = ($apiResponse['success'] && isset($apiResponse['stats'])) ? $apiResponse['stats'] : array('total' => 0, 'pendientes' => 0, 'en_proceso' => 0, 'resueltos' => 0, 'no_corresponde' => 0);
+    $globalStats = ($apiResponse['success'] && isset($apiResponse['stats'])) ? $apiResponse['stats'] : array('total' => 0, 'pendientes' => 0, 'en_gestion' => 0, 'resueltos' => 0, 'no_corresponde' => 0);
 } else {
     $apiResponse = apiCall('solicitudes.php?action=mis_solicitudes', array());
     $solicitudesRaw = ($apiResponse['success'] && isset($apiResponse['solicitudes'])) ? $apiResponse['solicitudes'] : array();
@@ -44,12 +44,12 @@ foreach ($solicitudesRaw as $row) {
 
 if ($isAdminSistema) {
     $totalCasos = (int)$globalStats['total']; $pendientes = (int)$globalStats['pendientes'];
-    $enProceso = (int)$globalStats['en_proceso']; $resueltos = (int)$globalStats['resueltos'];
+    $enProceso = (int)$globalStats['en_gestion']; $resueltos = (int)$globalStats['resueltos'];
     $noCorresponde = (int)$globalStats['no_corresponde'];
 } else {
     $totalCasos = count($casos);
     $pendientes = count(array_filter($casos, function($c) { return $c['estado'] === 'pendiente'; }));
-    $enProceso = count(array_filter($casos, function($c) { return in_array($c['estado'], ['aprobado', 'agendado', 'en_proceso']); }));
+    $enProceso = count(array_filter($casos, function($c) { return $c['estado'] === 'aprobado'; }));
     $resueltos = count(array_filter($casos, function($c) { return $c['estado'] === 'resuelto'; }));
     $noCorresponde = count(array_filter($casos, function($c) { return $c['estado'] === 'no_corresponde'; }));
 }
@@ -276,7 +276,6 @@ include 'includes/header.php';
                             <select class="filter-select" id="filterEstado">
                                 <option value="">Todos los estados</option>
                                 <option value="pendiente">Pendiente</option><option value="aprobado">Aprobado</option>
-                                <option value="agendado">Agendado</option><option value="en_proceso">En Proceso</option>
                                 <option value="resuelto">Resuelto</option><option value="no_corresponde">No Corresponde</option>
                             </select>
                             <?php if (!$isAdminSistema): ?>
@@ -308,8 +307,6 @@ include 'includes/header.php';
                                         $badgeClass = ''; switch ($caso['estado']) {
                                             case 'pendiente': $badgeClass = 'badge-pending'; break;
                                             case 'aprobado': $badgeClass = 'badge-approved'; break;
-                                            case 'agendado': $badgeClass = 'badge-scheduled'; break;
-                                            case 'en_proceso': $badgeClass = 'badge-in-progress'; break;
                                             case 'resuelto': $badgeClass = 'badge-resolved'; break;
                                             case 'no_corresponde': $badgeClass = 'badge-rejected'; break;
                                         }

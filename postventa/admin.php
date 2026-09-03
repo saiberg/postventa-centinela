@@ -103,7 +103,7 @@ if (empty($solicitudes)) {
         'ubicacion' => 'Depto 502, Torre A',
         'categoria' => 'Terminaciones',
         'subcategoria' => 'Puertas descuadradas',
-        'estado' => 'agendado',
+        'estado' => 'aprobado',
         'detalle' => 'La puerta del dormitorio principal no cierra correctamente.',
         'dias' => 'Lunes PM, Viernes AM',
         'evidencia' => 1
@@ -151,7 +151,7 @@ if (empty($solicitudes)) {
         'ubicacion' => 'Depto 1104, Torre B',
         'categoria' => 'Terminaciones',
         'subcategoria' => 'Pisos flotantes levantados',
-        'estado' => 'en_proceso',
+        'estado' => 'aprobado',
         'detalle' => 'Piso flotante del living se está levantando en las uniones.',
         'dias' => 'Lunes AM/PM, Martes AM',
         'evidencia' => 2
@@ -214,8 +214,6 @@ include 'includes/header.php';
                     <option value="">Todos los estados</option>
                     <option value="pendiente">Pendiente</option>
                     <option value="aprobado">Aprobado</option>
-                    <option value="agendado">Agendado</option>
-                    <option value="en_proceso">En Proceso</option>
                     <option value="resuelto">Resuelto</option>
                     <option value="no_corresponde">No Corresponde</option>
                 </select>
@@ -291,16 +289,12 @@ include 'includes/header.php';
                                 switch ($sol['estado']) {
                                     case 'pendiente': $badgeClass = 'badge-pending'; break;
                                     case 'aprobado': $badgeClass = 'badge-approved'; break;
-                                    case 'agendado': $badgeClass = 'badge-scheduled'; break;
-                                    case 'en_proceso': $badgeClass = 'badge-in-progress'; break;
                                     case 'resuelto': $badgeClass = 'badge-resolved'; break;
                                     case 'no_corresponde': $badgeClass = 'badge-rejected'; break;
                                 }
                                 $estadoLabel = [
                                     'pendiente' => 'Pendiente',
                                     'aprobado' => 'Aprobado',
-                                    'agendado' => 'Agendado',
-                                    'en_proceso' => 'En Proceso',
                                     'resuelto' => 'Resuelto',
                                     'no_corresponde' => 'No Corresponde'
                                 ][$sol['estado']];

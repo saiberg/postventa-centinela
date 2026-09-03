@@ -6,7 +6,8 @@
 require_once 'includes/config.php';
 
 if (isset($_SESSION['usuario_id'])) {
-    header('Location: dashboard.php');
+    $paginaInicio = (isset($_SESSION['usuario_rol']) && $_SESSION['usuario_rol'] === 'admin_sistema') ? 'dashboard2.php' : 'dashboard.php';
+    header('Location: ' . $paginaInicio);
 } else {
     header('Location: login.php');
 }

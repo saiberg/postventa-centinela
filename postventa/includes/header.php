@@ -40,7 +40,7 @@ $currentPage = basename($_SERVER['PHP_SELF']);
     <?php if ($currentPage == 'login.php' || $currentPage == 'registro.php' || $currentPage == 'recuperar.php'): ?>
     <link rel="stylesheet" href="<?php echo ASSETS_URL; ?>css/auth.css">
     <?php endif; ?>
-    <?php if ($currentPage == 'dashboard.php' || $currentPage == 'dashboard-preview.php' || $currentPage == 'dashboard-preview2.php' || $currentPage == 'dashboard-preview3.php' || $currentPage == 'dashboard-preview4.php' || $currentPage == 'nueva-solicitud.php' || $currentPage == 'mis-solicitudes.php'): ?>
+    <?php if ($currentPage == 'dashboard.php' || $currentPage == 'dashboard2.php' || $currentPage == 'dashboard-preview.php' || $currentPage == 'dashboard-preview2.php' || $currentPage == 'dashboard-preview3.php' || $currentPage == 'dashboard-preview4.php' || $currentPage == 'nueva-solicitud.php' || $currentPage == 'mis-solicitudes.php'): ?>
     <link rel="stylesheet" href="<?php echo ASSETS_URL; ?>css/dashboard.css">
     <?php endif; ?>
     <?php if ($currentPage == 'nueva-solicitud.php'): ?>
@@ -55,7 +55,7 @@ $currentPage = basename($_SERVER['PHP_SELF']);
     <header class="site-header">
         <div class="header-container">
             <div class="header-logo">
-                <a href="<?php echo $isLoggedIn ? 'dashboard.php' : 'login.php'; ?>">
+                <a href="<?php echo $isLoggedIn ? ($isAdminSistema ? 'dashboard2.php' : 'dashboard.php') : 'login.php'; ?>">
                     <img src="<?php echo IMG_URL; ?>logo-centinela-300x88.png" alt="Centinela Inmobiliaria" class="logo-img">
                 </a>
             </div>
@@ -68,8 +68,8 @@ $currentPage = basename($_SERVER['PHP_SELF']);
                     <span class="menu-icon-bar"></span>
                 </button>
                 <ul class="nav-menu" id="navMenu">
-                    <li class="<?php echo $currentPage == 'dashboard.php' ? 'active' : ''; ?>">
-                        <a href="dashboard.php"><i class="fas fa-tachometer-alt"></i> Mi Panel</a>
+                    <li class="<?php echo ($currentPage == 'dashboard.php' || $currentPage == 'dashboard2.php') ? 'active' : ''; ?>">
+                        <a href="<?php echo $isAdminSistema ? 'dashboard2.php' : 'dashboard.php'; ?>"><i class="fas fa-tachometer-alt"></i> Mi Panel</a>
                     </li>
                     <?php if (!$isAdminSistema): ?>
                     <li class="<?php echo $currentPage == 'nueva-solicitud.php' ? 'active' : ''; ?>">

@@ -12,7 +12,7 @@ require_once 'includes/config.php';
 require_once 'includes/api_helper.php';
 
 if (isset($_SESSION['usuario_id'])) {
-    header('Location: dashboard.php');
+    header('Location: ' . ((isset($_SESSION['usuario_rol']) && $_SESSION['usuario_rol'] === 'admin_sistema') ? 'dashboard2.php' : 'dashboard.php'));
     exit;
 }
 

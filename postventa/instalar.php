@@ -45,7 +45,7 @@ $sqlSolicitudes = "CREATE TABLE IF NOT EXISTS `icentPventaSolicitudes` (
     `subcategoria` VARCHAR(100) NOT NULL,
     `detalle` TEXT DEFAULT NULL,
     `dias_disponibles` TEXT DEFAULT NULL,
-    `estado` ENUM('pendiente','aprobado','no_corresponde','agendado','en_proceso','resuelto') NOT NULL DEFAULT 'pendiente',
+    `estado` ENUM('pendiente','aprobado','no_corresponde','resuelto') NOT NULL DEFAULT 'pendiente',
     `fecha_agendamiento` DATETIME DEFAULT NULL,
     `equipo_asignado` VARCHAR(150) DEFAULT NULL,
     `comentario_admin` TEXT DEFAULT NULL,
@@ -76,6 +76,10 @@ if ($columnaMotivo && $columnaMotivo->num_rows === 0) {
         die('<div class="alert alert-danger">Error al agregar motivo_rechazo: ' . $conn->error . '</div>');
     }
 }
+
+// Migrar estados antiguos antes de retirar sus valores del ENUM
+$conn->query("UPDATE icentPventaSolicitudes SET estado = 'aprobado' WHERE estado IN ('agendado', 'en_proceso')");
+$conn->query("ALTER TABLE icentPventaSolicitudes MODIFY estado ENUM('pendiente','aprobado','no_corresponde','resuelto') NOT NULL DEFAULT 'pendiente'");
 
 // ========== TABLA: icentPventaArchivos ==========
 $sqlArchivos = "CREATE TABLE IF NOT EXISTS `icentPventaArchivos` (

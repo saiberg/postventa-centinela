@@ -46,7 +46,7 @@ include 'includes/header.php';
             <p class="text-muted">Rol: <?php echo $_SESSION['es_admin'] ? 'Administrador' : 'Propietario/Residente'; ?></p>
             
             <div class="mt-3">
-                <a href="dashboard.php" class="btn btn-primary">
+                <a href="<?php echo (isset($_SESSION['usuario_rol']) && $_SESSION['usuario_rol'] === 'admin_sistema') ? 'dashboard2.php' : 'dashboard.php'; ?>" class="btn btn-primary">
                     <i class="fas fa-arrow-left"></i> Volver al Panel
                 </a>
             </div>

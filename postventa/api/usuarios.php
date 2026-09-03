@@ -196,7 +196,7 @@ switch ($action) {
                 'rol'      => $user['rol'],
                 'es_admin' => ($user['rol'] === 'admin_sistema')
             ],
-            'redirect' => 'dashboard.php'
+            'redirect' => ($user['rol'] === 'admin_sistema' ? 'dashboard2.php' : 'dashboard.php')
         ]);
         break;
 

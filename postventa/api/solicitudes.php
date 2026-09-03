@@ -455,7 +455,7 @@ switch ($action) {
             "SELECT 
                 COUNT(*) as total,
                 SUM(CASE WHEN estado = 'pendiente' THEN 1 ELSE 0 END) as pendientes,
-                SUM(CASE WHEN estado IN ('aprobado','agendado','en_proceso') THEN 1 ELSE 0 END) as en_proceso,
+                SUM(CASE WHEN estado = 'aprobado' THEN 1 ELSE 0 END) as en_gestion,
                 SUM(CASE WHEN estado = 'resuelto' THEN 1 ELSE 0 END) as resueltos,
                 SUM(CASE WHEN estado = 'no_corresponde' THEN 1 ELSE 0 END) as no_corresponde
              FROM icentpventasolicitudes"
@@ -468,7 +468,7 @@ switch ($action) {
                     COUNT(*) as total,
                     SUM(CASE WHEN s.estado = 'pendiente' THEN 1 ELSE 0 END) as pendientes,
                     SUM(CASE WHEN s.estado = 'resuelto' THEN 1 ELSE 0 END) as resueltos,
-                    SUM(CASE WHEN s.estado IN ('aprobado','agendado','en_proceso') THEN 1 ELSE 0 END) as abiertos
+                    SUM(CASE WHEN s.estado = 'aprobado' THEN 1 ELSE 0 END) as abiertos
              FROM icentpventasolicitudes s
              LEFT JOIN obras o ON s.obra_id = o.obra_id
              GROUP BY s.obra_id, o.obra_nombre

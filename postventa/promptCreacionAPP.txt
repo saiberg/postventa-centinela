@@ -17,7 +17,7 @@ El objetivo es crear una plataforma web de atención postventa para Inmobiliaria
 1.- Debe existir una página de ingreso mediante usuario y contraseña. Además, debe tener la
 opción de “Registro” para cuando el cliente trate de ingresar la primera al vez al sitio y una opción para “recuperar contraseña” y la opción “recordarme”.
 
-2.- Debe tener una segunda página que muestre el estado de los casos del cliente logueado y una estadística de los tiempos promedios de resolución. Debe contener a lo menos: Tabla con los casos ingresados por el cliente, con el estado del caso, en el caso que el caso se encuentre agendado debe mostrar las fechas de agendamiento y el equipo asignado. Si el caso se clasifique como “No corresponde” debe también mostrarlo. Y el caso no ha sido revisado debe mostrar como “Pendiente”. Además debe tener un botón que permita el ingreso de un nuevo caso el cual se describe en el punto 3.
+2.- Debe tener una segunda página que muestre el estado de los casos del cliente logueado y una estadística de los tiempos promedios de resolución. Debe contener a lo menos: Tabla con los casos ingresados por el cliente, con el estado del caso. Si el caso se clasifique como “No corresponde” debe también mostrarlo. Y el caso no ha sido revisado debe mostrar como “Pendiente”. Además debe tener un botón que permita el ingreso de un nuevo caso el cual se describe en el punto 3.
 
 3.- Una página de ingreso de solicitudes de reparación/atención que contenga los siguientes secciones y campos:
 A. Sección de Identificación

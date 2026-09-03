@@ -17,8 +17,6 @@ $solicitudes = ($apiResponse['success'] && isset($apiResponse['solicitudes'])) ?
 $estados = array(
     'pendiente' => 'Pendiente',
     'aprobado' => 'Aprobado',
-    'agendado' => 'Agendado',
-    'en_proceso' => 'En proceso',
     'resuelto' => 'Resuelto',
     'no_corresponde' => 'No corresponde'
 );
@@ -33,13 +31,11 @@ $porProyecto = array();
 $pendientesPorProyecto = array();
 $porCategoriaEstado = array();
 $pendientes = array();
-$estadosAbiertos = array('pendiente', 'aprobado', 'agendado', 'en_proceso');
+$estadosAbiertos = array('pendiente', 'aprobado');
 $estadosCerrados = array('resuelto', 'no_corresponde');
 $coloresEstado = array(
     'pendiente' => '#e39b32',
     'aprobado' => '#608418',
-    'agendado' => '#3d86a8',
-    'en_proceso' => '#4b6fa8',
     'resuelto' => '#2e936f',
     'no_corresponde' => '#c95b6b'
 );
@@ -53,11 +49,11 @@ foreach ($solicitudes as $solicitud) {
     $estadoTotals[$estado]++;
 
     if (!isset($porProyecto[$proyecto])) {
-        $porProyecto[$proyecto] = array('total' => 0, 'pendientes' => 0, 'en_proceso' => 0, 'resueltos' => 0, 'rechazados' => 0);
+        $porProyecto[$proyecto] = array('total' => 0, 'pendientes' => 0, 'en_gestion' => 0, 'resueltos' => 0, 'rechazados' => 0);
     }
     $porProyecto[$proyecto]['total']++;
     if ($estado === 'pendiente') $porProyecto[$proyecto]['pendientes']++;
-    if (in_array($estado, array('aprobado', 'agendado', 'en_proceso'))) $porProyecto[$proyecto]['en_proceso']++;
+    if ($estado === 'aprobado') $porProyecto[$proyecto]['en_gestion']++;
     if ($estado === 'resuelto') $porProyecto[$proyecto]['resueltos']++;
     if ($estado === 'no_corresponde') $porProyecto[$proyecto]['rechazados']++;
 
@@ -127,7 +123,7 @@ uasort($pendientesPorProyecto, function($a, $b) {
 
 $totalSolicitudes = count($solicitudes);
 $totalPendientes = $estadoTotals['pendiente'];
-$totalEnGestion = $estadoTotals['aprobado'] + $estadoTotals['agendado'] + $estadoTotals['en_proceso'];
+$totalEnGestion = $estadoTotals['aprobado'];
 $totalResueltos = $estadoTotals['resuelto'];
 $totalRechazados = $estadoTotals['no_corresponde'];
 
@@ -196,8 +192,6 @@ include 'includes/header.php';
 .dashboard2-status { min-width:94px; text-align:center; }
 .dashboard2-status-pendiente { background:#fff0d5; color:#926018; }
 .dashboard2-status-aprobado { background:#dff2ea; color:#237454; }
-.dashboard2-status-agendado { background:#e1f0f5; color:#286b83; }
-.dashboard2-status-en_proceso { background:#e4e8f7; color:#465a99; }
 .dashboard2-status-resuelto { background:#d9f1e3; color:#237044; }
 .dashboard2-status-no_corresponde { background:#f8e1e5; color:#a13f50; }
 .dashboard2-empty { padding:28px 20px; text-align:center; color:#7b857d; font-size:.85rem; }
@@ -258,7 +252,7 @@ include 'includes/header.php';
                             <div class="dashboard2-category-summary">
                             <?php foreach ($porCategoriaEstado as $categoriaNombre => $valoresCategoria):
                                 $totalCategoria = array_sum($valoresCategoria);
-                                $abiertosCategoria = $valoresCategoria['pendiente'] + $valoresCategoria['aprobado'] + $valoresCategoria['agendado'] + $valoresCategoria['en_proceso'];
+                                $abiertosCategoria = $valoresCategoria['pendiente'] + $valoresCategoria['aprobado'];
                                 $cerradosCategoria = $valoresCategoria['resuelto'] + $valoresCategoria['no_corresponde'];
                                 $porcentajeCategoria = $totalSolicitudes > 0 ? ($totalCategoria / $totalSolicitudes) * 100 : 0;
                             ?>
@@ -283,7 +277,7 @@ include 'includes/header.php';
                         <?php if (empty($porProyecto)): ?>
                             <tr><td colspan="6" class="dashboard2-empty">No hay datos de proyectos disponibles.</td></tr>
                         <?php else: foreach ($porProyecto as $proyecto => $indicadores): ?>
-                            <tr><td><strong><?php echo htmlspecialchars($proyecto); ?></strong></td><td class="dashboard2-number"><?php echo $indicadores['total']; ?></td><td><?php echo $indicadores['pendientes']; ?></td><td><?php echo $indicadores['en_proceso']; ?></td><td><?php echo $indicadores['resueltos']; ?></td><td><?php echo $indicadores['rechazados']; ?></td></tr>
+                            <tr><td><strong><?php echo htmlspecialchars($proyecto); ?></strong></td><td class="dashboard2-number"><?php echo $indicadores['total']; ?></td><td><?php echo $indicadores['pendientes']; ?></td><td><?php echo $indicadores['en_gestion']; ?></td><td><?php echo $indicadores['resueltos']; ?></td><td><?php echo $indicadores['rechazados']; ?></td></tr>
                         <?php endforeach; endif; ?>
                         </tbody>
                     </table>
@@ -390,7 +384,7 @@ include 'includes/header.php';
     var categoriaLabels = <?php echo json_encode(array_keys($porCategoriaEstado)); ?>;
     var categoriaData = <?php echo json_encode(array_values($porCategoriaEstado)); ?>;
     var estadoKeys = <?php echo json_encode(array_keys($estados)); ?>;
-    var colores = ['#e39b32', '#608418', '#3d86a8', '#4b6fa8', '#2e936f', '#c95b6b'];
+    var colores = ['#e39b32', '#608418', '#2e936f', '#c95b6b'];
 
     new Chart(document.getElementById('estadoGeneralChart'), {
         type: 'doughnut',

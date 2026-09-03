@@ -7,7 +7,8 @@ require_once 'includes/api_helper.php';
 
 // Si ya está logueado, redirigir al dashboard
 if (isset($_SESSION['usuario_id'])) {
-    header('Location: dashboard.php');
+    $paginaInicio = (isset($_SESSION['usuario_rol']) && $_SESSION['usuario_rol'] === 'admin_sistema') ? 'dashboard2.php' : 'dashboard.php';
+    header('Location: ' . $paginaInicio);
     exit;
 }
 

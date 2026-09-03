@@ -361,11 +361,11 @@ function loadCaseDetail(caseId) {
             // Labels de estado
             var estadoLabels = {
                 'pendiente': 'Pendiente', 'aprobado': 'Aprobado', 'no_corresponde': 'No Corresponde',
-                'agendado': 'Agendado', 'en_proceso': 'En Proceso', 'resuelto': 'Resuelto'
+                'resuelto': 'Resuelto'
             };
             var badgeClasses = {
                 'pendiente': 'badge-pending', 'aprobado': 'badge-approved', 'no_corresponde': 'badge-rejected',
-                'agendado': 'badge-scheduled', 'en_proceso': 'badge-in-progress', 'resuelto': 'badge-resolved'
+                'resuelto': 'badge-resolved'
             };
             
             // Llenar campos del modal

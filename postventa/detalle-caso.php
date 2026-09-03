@@ -25,7 +25,7 @@ $solicitud = ($apiResponse['success'] && isset($apiResponse['solicitud'])) ? $ap
 $seguimiento = ($apiResponse['success'] && isset($apiResponse['seguimiento'])) ? $apiResponse['seguimiento'] : array();
 
 if (!$solicitud) {
-    header('Location: dashboard.php');
+    header('Location: ' . ((isset($_SESSION['usuario_rol']) && $_SESSION['usuario_rol'] === 'admin_sistema') ? 'dashboard2.php' : 'dashboard.php'));
     exit;
 }
 
@@ -34,24 +34,18 @@ $estadoLabels = array(
     'pendiente'      => 'Pendiente',
     'aprobado'       => 'Aprobado',
     'no_corresponde' => 'No Corresponde',
-    'agendado'       => 'Agendado',
-    'en_proceso'     => 'En Proceso',
     'resuelto'       => 'Resuelto'
 );
 $estadoBadges = array(
     'pendiente'      => 'badge-pending',
     'aprobado'       => 'badge-approved',
     'no_corresponde' => 'badge-rejected',
-    'agendado'       => 'badge-scheduled',
-    'en_proceso'     => 'badge-in-progress',
     'resuelto'       => 'badge-resolved'
 );
 $estadoIcons = array(
     'pendiente'      => 'fa-clock',
     'aprobado'       => 'fa-check',
     'no_corresponde' => 'fa-times-circle',
-    'agendado'       => 'fa-calendar-check',
-    'en_proceso'     => 'fa-spinner',
     'resuelto'       => 'fa-check-circle'
 );
 
@@ -133,7 +127,7 @@ include 'includes/header.php';
 
 <div class="detalle-container">
     <div class="mb-3">
-        <a href="dashboard.php" class="btn btn-secondary btn-sm">
+        <a href="<?php echo (isset($_SESSION['usuario_rol']) && $_SESSION['usuario_rol'] === 'admin_sistema') ? 'dashboard2.php' : 'dashboard.php'; ?>" class="btn btn-secondary btn-sm">
             <i class="fas fa-arrow-left"></i> Volver al Panel
         </a>
     </div>
