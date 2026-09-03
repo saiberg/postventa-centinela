@@ -434,7 +434,7 @@ switch ($action) {
         
         $db = getDB();
         $result = $db->query(
-            "SELECT s.id, s.created_at,
+            "SELECT s.id, s.created_at, s.updated_at,
                     s.ubicacion_valor, s.categoria, s.subcategoria, s.estado, s.detalle,
                     s.dias_disponibles, s.urgencia, s.obra_id, s.motivo_rechazo,
                     o.obra_nombre,

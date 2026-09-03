@@ -317,77 +317,6 @@ $(document).ready(function() {
         );
     });
     
-    // --- Cambio de estado en modal ---
-    $('#modalStatusSelect').on('change', function() {
-        var newStatus = $(this).val();
-        var currentStatus = $(this).data('current-status');
-        
-        // Si el estado actual ya es "aprobado", no permitir modificaciones
-        // porque el caso ya fue enviado a la constructora (SIGRO)
-        if (currentStatus === 'aprobado') {
-            showToast('No se puede modificar un caso que ya fue aprobado y enviado a la constructora.', 'warning');
-            $(this).val('aprobado'); // Revertir al valor original
-            return;
-        }
-        
-        // Mostrar/ocultar advertencia de envío a constructora
-        if (newStatus === 'aprobado') {
-            $('#aprobadoWarning').slideDown(200);
-        } else {
-            $('#aprobadoWarning').slideUp(200);
-        }
-        var statusLabels = {
-            'pendiente': 'Pendiente',
-            'aprobado': 'Aprobado',
-            'no_corresponde': 'No Corresponde',
-            'agendado': 'Agendado',
-            'en_proceso': 'En Proceso',
-            'resuelto': 'Resuelto'
-        };
-        if (newStatus === 'aprobado') {
-            // Obtener el ID del caso del modal
-            var caseId = $('#caseModal').data('current-case-id') || $(this).data('case-id') || 0;
-            var $select = $(this);
-            var $row = $('.case-row[data-id="' + caseId + '"]');
-            var urgencia = $row.length ? ($row.find('.urgencia-select').val() || '0') : '0';
-            
-            if (caseId > 0) {
-                showAprobarConfirm(caseId, urgencia, $('#saveStatusBtn'), $row, function() {
-                    // Actualizar badge en el modal
-                    $('#modalStatusBadge').removeClass().addClass('badge badge-approved').text('Aprobado');
-                    $select.data('current-status', 'aprobado');
-                });
-            } else {
-                // Fallback: sin ID de caso, mostrar confirmación simple
-                showConfirm(
-                    '<div style="text-align:center; margin-bottom:8px;">' +
-                    '<i class="fas fa-exclamation-triangle" style="color:#f0ad4e; font-size:2rem; display:block; margin-bottom:10px;"></i>' +
-                    '<strong style="font-size:1rem;">¿Cambiar estado a "Aprobado"?</strong>' +
-                    '</div>' +
-                    '<div style="background:#fff3cd; border:1px solid #ffc107; border-radius:8px; padding:12px; margin-top:8px; text-align:center;">' +
-                    '<i class="fas fa-share-square" style="color:#d39e00;"></i> ' +
-                    '<strong style="color:#856404;">Al aprobar, esta solicitud será enviada al sistema de la constructora (SIGRO).</strong>' +
-                    '</div>',
-                    function() {
-                        $('#modalStatusBadge').removeClass().addClass('badge badge-approved').text('Aprobado');
-                        $select.data('current-status', 'aprobado');
-                    },
-                    function() {
-                        $select.val($select.data('current-status'));
-                    }
-                );
-            }
-        } else {
-            if (confirm('¿Cambiar estado a "' + statusLabels[newStatus] + '"?')) {
-                // Simulación
-                alert('Estado actualizado correctamente.');
-            } else {
-                // Revertir
-                $(this).val($(this).data('current-status'));
-            }
-        }
-    });
-    
     // --- Filtros ---
     $('#filterEstado').on('change', function() {
         var estado = $(this).val();
@@ -458,27 +387,16 @@ function loadCaseDetail(caseId) {
             $badge.removeClass().addClass('badge ' + (badgeClasses[s.estado] || 'badge-pending'));
             $badge.text(estadoLabels[s.estado] || s.estado);
             
-            // Select de estado
-            $('#modalStatusSelect').val(s.estado).data('current-status', s.estado);
-            
             // Guardar ID del caso actual en el modal
             $('#caseModal').data('current-case-id', s.id);
             
             // Select de urgencia
             $('#modalUrgenciaSelect').val(s.urgencia || '0');
             
-            // Si el estado es "aprobado", bloquear el select de estado y urgencia
-            // porque el caso ya fue enviado a la constructora (SIGRO) y no se puede revertir
             if (s.estado === 'aprobado') {
-                $('#modalStatusSelect').prop('disabled', true);
                 $('#modalUrgenciaSelect').prop('disabled', true);
-                $('#aprobadoWarning').show();
-                $('#saveStatusBtn').prop('disabled', true).css('opacity', '0.5');
             } else {
-                $('#modalStatusSelect').prop('disabled', false);
                 $('#modalUrgenciaSelect').prop('disabled', false);
-                $('#aprobadoWarning').hide();
-                $('#saveStatusBtn').prop('disabled', false).css('opacity', '1');
             }
             
             // Cargar archivos adjuntos

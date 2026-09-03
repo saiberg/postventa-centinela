@@ -463,10 +463,16 @@ include 'includes/header.php';
                 <p id="modalDias" style="font-size:0.9rem; color: var(--color-gray-700);">—</p>
             </div>
             
-            <!-- Cambio de Estado -->
+            <!-- Estado de la solicitud -->
             <div class="detail-section">
-                <h3><i class="fas fa-exchange-alt"></i> Cambiar Estado</h3>
+                <h3><i class="fas fa-info-circle"></i> Estado de la Solicitud</h3>
                 
+                <div style="display:flex; align-items:center; gap:12px;">
+                    <span>Estado actual:</span>
+                    <span class="badge" id="modalStatusBadge">Pendiente</span>
+                    <span><br/><br/></span>
+                </div>
+
                 <!-- Selector de Urgencia (solo admin_sistema) -->
                 <div style="display:flex; align-items:center; gap:12px; margin-bottom: 16px;">
                     <span style="font-weight:600; font-size:0.85rem;">Nivel de Urgencia:</span>
@@ -476,28 +482,9 @@ include 'includes/header.php';
                     </select>
                 </div>
                 
-                <div style="display:flex; align-items:center; gap:12px;">
-                    <span>Estado actual:</span>
-                    <span class="badge" id="modalStatusBadge">Pendiente</span>
-                    <span style="margin: 0 8px; color: var(--color-gray-400);">→</span>
-                    <select id="modalStatusSelect" class="status-select" style="width:auto; min-width:180px;">
-                        <option value="pendiente">Pendiente</option>
-                        <option value="aprobado">Aprobado</option>
-                        <option value="no_corresponde">No Corresponde</option>
-                        <option value="agendado">Agendado</option>
-                        <option value="en_proceso">En Proceso</option>
-                        <option value="resuelto">Resuelto</option>
-                    </select>
-                </div>
-                
-                <div id="aprobadoWarning" style="display:none; background:#fff3cd; border:1px solid #ffc107; border-radius:8px; padding:12px; margin-top:12px;">
-                    <i class="fas fa-exclamation-triangle" style="color:#d39e00;"></i>
-                    <strong style="color:#856404;">Al aprobar, esta solicitud será enviada al sistema de la constructora (SIGRO).</strong>
-                </div>
-                
                 <div class="admin-comment-box mt-2">
                     <label style="font-size:0.82rem; font-weight:600; margin-bottom:4px; display:block;">Comentario interno (visible solo para administradores)</label>
-                    <textarea placeholder="Agregar un comentario sobre este cambio de estado..."></textarea>
+                    <textarea placeholder="Agregar un comentario sobre este cambio de nivel de urgencia..."></textarea>
                 </div>
             </div>
             
@@ -536,9 +523,6 @@ include 'includes/header.php';
             <button class="btn btn-secondary modal-close-btn">
                 <i class="fas fa-times"></i> Cerrar
             </button>
-            <button class="btn btn-primary" id="saveStatusBtn">
-                <i class="fas fa-save"></i> Guardar Cambios
-            </button>
         </div>
     </div>
 </div>
@@ -565,13 +549,6 @@ $(document).ready(function() {
     $('#clearFilters').on('click', function() {
         $('#filterSearch, #filterEstado, #filterRol, #filterCategoria, #filterObra').val('');
         $('.case-row').show();
-    });
-    
-    // Guardar cambios en modal
-    $('#saveStatusBtn').on('click', function() {
-        alert('Cambios guardados correctamente (simulación).');
-        $('#caseModal').removeClass('show');
-        $('body').css('overflow', '');
     });
     
     function applyFilters() {
