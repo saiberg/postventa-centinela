@@ -197,9 +197,12 @@ include 'includes/header.php';
 .dashboard2-empty { padding:28px 20px; text-align:center; color:#7b857d; font-size:.85rem; }
 .dashboard2-filters { display:flex; flex-wrap:wrap; gap:10px; padding:14px 20px; border-bottom:1px solid #e8ece7; }
 .dashboard2-filters input, .dashboard2-filters select { min-width:180px; padding:8px 10px; border:1px solid #d8e0d7; border-radius:3px; color:#344238; font-size:.8rem; }
+.dashboard2-project-select { min-width:200px; padding:8px 10px; border:1px solid #d8e0d7; border-radius:3px; color:#344238; font-size:.8rem; background:rgba(255,255,255,.95); }
+.dashboard2-project-select:hover { background:#fff; }
+.dashboard2-project-select:focus { outline:none; border-color:#608418; background:#fff; }
 .dashboard2-requests-table tbody tr:hover { background:#edf5e9; }
 .dashboard2-requests-table .dashboard2-action { color:#608418; font-weight:700; text-decoration:none; white-space:nowrap; }
-@media (max-width:800px) { .dashboard2-kpis { grid-template-columns:1fr 1fr; } .dashboard2-grid { grid-template-columns:1fr; } .dashboard2-panel-wide { grid-column:auto; } .dashboard2-header { align-items:flex-start; flex-direction:column; } }
+@media (max-width:800px) { .dashboard2-kpis { grid-template-columns:1fr 1fr; } .dashboard2-grid { grid-template-columns:1fr; } .dashboard2-panel-wide { grid-column:auto; } .dashboard2-header { align-items:flex-start; flex-direction:column; } .dashboard2-header-filters { width:100%; margin-top:10px; } .dashboard2-header-filters select { width:100%; } }
 @media (max-width:650px) { .dashboard2-chart { min-height:0; } .dashboard2-chart-layout { grid-template-columns:1fr; gap:14px; } .dashboard2-chart-layout .dashboard2-chart { height:260px; } .dashboard2-chart-side { border-left:0; border-top:1px solid #e8ece7; padding:14px 0 0; } .dashboard2-category-summary { grid-template-columns:1fr 1fr; } }
 @media (max-width:520px) { .dashboard2-kpis { grid-template-columns:1fr; } .dashboard2-container { padding:20px 12px 30px; } }
 </style>
@@ -210,6 +213,14 @@ include 'includes/header.php';
             <div>
                 <h1><i class="fas fa-chart-line"></i> Dashboard de gestión</h1>
                 <p>Indicadores operativos para apoyar la gestión de solicitudes de postventa.</p>
+            </div>
+            <div class="dashboard2-header-filters">
+                <select id="dashboard2ProjectFilter" class="dashboard2-project-select">
+                    <option value="">Todos los proyectos</option>
+                    <?php foreach (array_keys($porProyecto) as $nombreProyecto): ?>
+                        <option value="<?php echo htmlspecialchars($nombreProyecto); ?>"><?php echo htmlspecialchars($nombreProyecto); ?></option>
+                    <?php endforeach; ?>
+                </select>
             </div>
         </div>
 
@@ -405,16 +416,73 @@ include 'includes/header.php';
         var texto = document.getElementById('dashboard2RequestSearch').value.toLowerCase();
         var estado = document.getElementById('dashboard2RequestStatus').value;
         var proyecto = document.getElementById('dashboard2RequestProject').value;
+        console.log('Filtro proyecto:', proyecto);
         document.querySelectorAll('.dashboard2-request-row').forEach(function(row) {
             var coincideTexto = !texto || row.textContent.toLowerCase().indexOf(texto) !== -1;
             var coincideEstado = !estado || row.getAttribute('data-request-status') === estado;
             var coincideProyecto = !proyecto || row.getAttribute('data-request-project') === proyecto;
+            console.log('Fila:', row.getAttribute('data-request-project'), 'Coincide:', coincideProyecto);
             row.style.display = coincideTexto && coincideEstado && coincideProyecto ? '' : 'none';
         });
     }
     document.getElementById('dashboard2RequestSearch').addEventListener('input', filtrarSolicitudesDashboard2);
     document.getElementById('dashboard2RequestStatus').addEventListener('change', filtrarSolicitudesDashboard2);
     document.getElementById('dashboard2RequestProject').addEventListener('change', filtrarSolicitudesDashboard2);
+    
+    function filtrarPorProyecto(proyectoSeleccionado) {
+        var filasSolicitudes = document.querySelectorAll('.dashboard2-request-row');
+        var filasPendientes = document.querySelectorAll('.dashboard2-antiguos-row');
+        var kpiTotal = document.querySelector('.dashboard2-kpi:nth-child(1) .dashboard2-kpi-value');
+        var kpiPendientes = document.querySelector('.dashboard2-kpi:nth-child(2) .dashboard2-kpi-value');
+        var kpiAprobados = document.querySelector('.dashboard2-kpi:nth-child(3) .dashboard2-kpi-value');
+        var kpiResueltos = document.querySelector('.dashboard2-kpi:nth-child(4) .dashboard2-kpi-value');
+        var kpiNoCorresponde = document.querySelector('.dashboard2-kpi:nth-child(5) .dashboard2-kpi-value');
+        
+        var totalProyectos = 0;
+        var totalPendientes = 0;
+        var totalAprobados = 0;
+        var totalResueltos = 0;
+        var totalNoCorresponde = 0;
+        
+        filasSolicitudes.forEach(function(fila) {
+            var proyectoFila = fila.getAttribute('data-request-project');
+            var coincide = !proyectoSeleccionado || proyectoFila === proyectoSeleccionado;
+            var estadoFila = fila.getAttribute('data-request-status');
+            
+            if (coincide) {
+                fila.style.display = '';
+                if (estadoFila === 'pendiente') totalPendientes++;
+                if (estadoFila === 'aprobado') totalAprobados++;
+                if (estadoFila === 'resuelto') totalResueltos++;
+                if (estadoFila === 'no_corresponde') totalNoCorresponde++;
+            } else {
+                fila.style.display = 'none';
+            }
+        });
+        
+        var filasPendientesAntiguos = document.querySelectorAll('.dashboard2-antiguos-row');
+        filasPendientesAntiguos.forEach(function(fila) {
+            var proyectoFila = fila.getAttribute('data-request-project');
+            var coincide = !proyectoSeleccionado || proyectoFila === proyectoSeleccionado;
+            fila.style.display = coincide ? '' : 'none';
+            
+            if (coincide) {
+                var estadoFila = fila.getAttribute('data-request-status');
+                if (estadoFila === 'pendiente') totalPendientes++;
+                if (estadoFila === 'aprobado') totalAprobados++;
+                if (estadoFila === 'resuelto') totalResueltos++;
+                if (estadoFila === 'no_corresponde') totalNoCorresponde++;
+            }
+        });
+        
+        kpiTotal.textContent = filasSolicitudes.length;
+        kpiPendientes.textContent = totalPendientes;
+        kpiAprobados.textContent = totalAprobados;
+        kpiResueltos.textContent = totalResueltos;
+        kpiNoCorresponde.textContent = totalNoCorresponde;
+    }
+    
+    document.getElementById('dashboard2ProjectFilter').addEventListener('change', filtrarPorProyecto);
 })();
 </script>
 

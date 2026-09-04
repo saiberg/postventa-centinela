@@ -46,7 +46,7 @@ $currentPage = basename($_SERVER['PHP_SELF']);
     <?php if ($currentPage == 'nueva-solicitud.php'): ?>
     <link rel="stylesheet" href="<?php echo ASSETS_URL; ?>css/solicitud.css">
     <?php endif; ?>
-    <?php if ($currentPage == 'admin.php' || $currentPage == 'admin-detalle.php' || $currentPage == 'admin-usuarios.php'): ?>
+    <?php if ($currentPage == 'admin.php' || $currentPage == 'admin-detalle.php' || $currentPage == 'admin-usuarios.php' || $currentPage == 'comunicaciones.php'): ?>
     <link rel="stylesheet" href="<?php echo ASSETS_URL; ?>css/admin.css">
     <?php endif; ?>
 </head>
@@ -84,6 +84,9 @@ $currentPage = basename($_SERVER['PHP_SELF']);
                     <?php if ($isAdmin): ?>
                     <li class="<?php echo $currentPage == 'admin.php' ? 'active' : ''; ?>">
                         <a href="admin.php"><i class="fas fa-cogs"></i> Administración</a>
+                    </li>
+                    <li class="<?php echo $currentPage == 'comunicaciones.php' ? 'active' : ''; ?>">
+                        <a href="comunicaciones.php"><i class="fas fa-comments"></i> Comunicaciones</a>
                     </li>
                     <?php if ($isAdminSistema): ?>
                     <li class="<?php echo $currentPage == 'admin-usuarios.php' ? 'active' : ''; ?>">

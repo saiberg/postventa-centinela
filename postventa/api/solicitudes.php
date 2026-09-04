@@ -488,6 +488,165 @@ switch ($action) {
         ]);
         break;
 
+    // ========== BITACORA GLOBAL DE COMUNICACIONES (admin_sistema) ==========
+    case 'comunicaciones':
+        if (!isset($_SESSION['usuario_id']) || !isset($_SESSION['usuario_rol']) || $_SESSION['usuario_rol'] !== 'admin_sistema') {
+            http_response_code(403);
+            echo json_encode(['success' => false, 'message' => 'Acceso denegado']);
+            exit;
+        }
+
+        $db = getDB();
+        $obraId = isset($_POST['obra_id']) ? (int)$_POST['obra_id'] : 0;
+        $tipo = isset($_POST['tipo']) ? trim($_POST['tipo']) : '';
+        $estado = isset($_POST['estado']) ? trim($_POST['estado']) : '';
+        $caso = isset($_POST['caso']) ? trim($_POST['caso']) : '';
+        $desde = isset($_POST['desde']) ? trim($_POST['desde']) : '';
+        $hasta = isset($_POST['hasta']) ? trim($_POST['hasta']) : '';
+        $sinContacto = isset($_POST['sin_contacto']) ? (int)$_POST['sin_contacto'] : 0;
+
+        $where = array("seg.tipo LIKE 'comunicacion:%'");
+        $params = array();
+        $types = '';
+        if ($obraId > 0) {
+            $where[] = 'COALESCE(o.obra_id, obra_departamento.obra_id) = ?';
+            $params[] = $obraId;
+            $types .= 'i';
+        }
+        if ($tipo !== '') {
+            $where[] = 'seg.tipo = ?';
+            $params[] = 'comunicacion:' . $tipo;
+            $types .= 's';
+        }
+        if ($estado !== '') {
+            $where[] = 's.estado = ?';
+            $params[] = $estado;
+            $types .= 's';
+        }
+        if ($caso !== '') {
+            $where[] = '(CAST(s.id AS CHAR) LIKE ? OR u.nombre LIKE ? OR u.email LIKE ?)';
+            $casoLike = '%' . $caso . '%';
+            $params[] = $casoLike;
+            $params[] = $casoLike;
+            $params[] = $casoLike;
+            $types .= 'sss';
+        }
+        if ($desde !== '') {
+            $where[] = 'seg.created_at >= ?';
+            $params[] = $desde . ' 00:00:00';
+            $types .= 's';
+        }
+        if ($hasta !== '') {
+            $where[] = 'seg.created_at <= ?';
+            $params[] = $hasta . ' 23:59:59';
+            $types .= 's';
+        }
+        if ($sinContacto) {
+            $where[] = "s.estado IN ('pendiente', 'aprobado')";
+            $where[] = "NOT EXISTS (SELECT 1 FROM icentpventaseguimiento seg2 WHERE seg2.solicitud_id = s.id AND seg2.tipo LIKE 'comunicacion:%' AND seg2.created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY))";
+        }
+
+        $sql = "SELECT seg.id, seg.solicitud_id, seg.tipo, seg.comentario, seg.created_at,
+                       s.created_at AS fecha_caso, s.estado, s.ubicacion_valor,
+                       COALESCE(o.obra_nombre, obra_departamento.obra_nombre) AS proyecto,
+                       e.edificio_nombre AS edificio,
+                       u.nombre AS propietario, u.email AS propietario_email,
+                       COALESCE(contacto.nombre, 'Sistema') AS registrado_por
+                FROM icentpventaseguimiento seg
+                INNER JOIN icentpventasolicitudes s ON s.id = seg.solicitud_id
+                LEFT JOIN obras o ON s.obra_id = o.obra_id
+                LEFT JOIN departamentos d ON s.departamento_id = d.departamento_id
+                LEFT JOIN pisos p ON d.piso_id = p.piso_id
+                LEFT JOIN edificios e ON COALESCE(NULLIF(s.edificio_id, 0), p.edificio_id) = e.edificio_id
+                LEFT JOIN obras obra_departamento ON e.obra_id = obra_departamento.obra_id
+                LEFT JOIN icentpventausuarios u ON s.usuario_id = u.id
+                LEFT JOIN icentpventausuarios contacto ON seg.usuario_id = contacto.id
+                WHERE " . implode(' AND ', $where) . "
+                ORDER BY seg.created_at DESC";
+        $stmt = $db->prepare($sql);
+        if (!empty($params)) {
+            $bindParams = array($types);
+            foreach ($params as $key => $value) {
+                $bindParams[] = &$params[$key];
+            }
+            call_user_func_array(array($stmt, 'bind_param'), $bindParams);
+        }
+        $stmt->execute();
+        $result = $stmt->get_result();
+        $comunicaciones = array();
+        while ($row = $result->fetch_assoc()) {
+            $comunicaciones[] = $row;
+        }
+
+        $statsResult = $db->query("SELECT
+            COUNT(*) AS total_casos,
+            SUM(CASE WHEN estado IN ('pendiente', 'aprobado') THEN 1 ELSE 0 END) AS casos_activos,
+            SUM(CASE WHEN estado IN ('pendiente', 'aprobado') AND id NOT IN
+                (SELECT DISTINCT solicitud_id FROM icentpventaseguimiento WHERE tipo LIKE 'comunicacion:%' AND created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)) THEN 1 ELSE 0 END) AS sin_contacto
+            FROM icentpventasolicitudes");
+        $stats = $statsResult ? $statsResult->fetch_assoc() : array();
+
+        $casosWhere = array(
+            "s.estado IN ('pendiente', 'aprobado')",
+            "NOT EXISTS (SELECT 1 FROM icentpventaseguimiento seg2 WHERE seg2.solicitud_id = s.id AND seg2.tipo LIKE 'comunicacion:%' AND seg2.created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY))"
+        );
+        $casosParams = array();
+        $casosTypes = '';
+        if ($obraId > 0) {
+            $casosWhere[] = 'COALESCE(o.obra_id, obra_departamento.obra_id) = ?';
+            $casosParams[] = $obraId;
+            $casosTypes .= 'i';
+        }
+        if ($estado !== '') {
+            $casosWhere[] = 's.estado = ?';
+            $casosParams[] = $estado;
+            $casosTypes .= 's';
+        }
+        if ($caso !== '') {
+            $casosWhere[] = '(CAST(s.id AS CHAR) LIKE ? OR u.nombre LIKE ? OR u.email LIKE ?)';
+            $casoLike = '%' . $caso . '%';
+            $casosParams[] = $casoLike;
+            $casosParams[] = $casoLike;
+            $casosParams[] = $casoLike;
+            $casosTypes .= 'sss';
+        }
+
+        $casosSql = "SELECT s.id, s.created_at, s.estado, s.ubicacion_valor,
+                            COALESCE(o.obra_nombre, obra_departamento.obra_nombre) AS proyecto,
+                            e.edificio_nombre AS edificio,
+                            u.nombre AS propietario, u.email AS propietario_email
+                     FROM icentpventasolicitudes s
+                     LEFT JOIN obras o ON s.obra_id = o.obra_id
+                     LEFT JOIN departamentos d ON s.departamento_id = d.departamento_id
+                     LEFT JOIN pisos p ON d.piso_id = p.piso_id
+                     LEFT JOIN edificios e ON COALESCE(NULLIF(s.edificio_id, 0), p.edificio_id) = e.edificio_id
+                     LEFT JOIN obras obra_departamento ON e.obra_id = obra_departamento.obra_id
+                     LEFT JOIN icentpventausuarios u ON s.usuario_id = u.id
+                     WHERE " . implode(' AND ', $casosWhere) . "
+                     ORDER BY s.created_at ASC";
+        $casosStmt = $db->prepare($casosSql);
+        if (!empty($casosParams)) {
+            $casosBindParams = array($casosTypes);
+            foreach ($casosParams as $key => $value) {
+                $casosBindParams[] = &$casosParams[$key];
+            }
+            call_user_func_array(array($casosStmt, 'bind_param'), $casosBindParams);
+        }
+        $casosStmt->execute();
+        $casosResult = $casosStmt->get_result();
+        $casosSinContacto = array();
+        while ($row = $casosResult->fetch_assoc()) {
+            $casosSinContacto[] = $row;
+        }
+
+        echo json_encode(array(
+            'success' => true,
+            'comunicaciones' => $comunicaciones,
+            'casos_sin_contacto' => $casosSinContacto,
+            'stats' => $stats
+        ));
+        break;
+
     // ========== DETALLE DE SOLICITUD ==========
     case 'detalle':
         if (!isset($_SESSION['usuario_id'])) {

@@ -60,6 +60,148 @@
     font-size: 0.85rem;
 }
 
+/* Bitacora global de comunicaciones */
+.communications-container {
+    max-width: 1440px;
+}
+
+.communications-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 16px;
+}
+
+.communications-header p {
+    color: var(--color-gray-600);
+    font-size: 0.9rem;
+    margin-top: 4px;
+}
+
+.communications-stats {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 16px;
+    margin-bottom: 20px;
+}
+
+.communication-stat {
+    background: var(--color-white);
+    border: 1px solid var(--color-gray-200);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-sm);
+    padding: 16px 18px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.communication-stat-icon {
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--color-primary);
+    background: var(--color-primary-bg);
+}
+
+.communication-stat-icon.active { color: var(--color-info); background: #e7f7fa; }
+.communication-stat-icon.warning { color: #9a6b00; background: #fff4d6; }
+.communication-stat strong { display: block; font-size: 1.35rem; line-height: 1.1; color: var(--color-gray-900); }
+.communication-stat span:not(.communication-stat-icon) { color: var(--color-gray-600); font-size: 0.78rem; }
+
+.communications-filters {
+    align-items: flex-end;
+}
+
+.communications-filters .form-group {
+    min-width: 150px;
+}
+
+.communications-filters .date-filter {
+    min-width: 145px;
+    flex: 0 1 155px;
+}
+
+.communication-check {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    min-height: 36px;
+    color: var(--color-gray-700);
+    font-size: 0.8rem;
+    cursor: pointer;
+}
+
+.communication-filter-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.communications-table th,
+.communications-table td {
+    vertical-align: top;
+}
+
+.communications-table td small {
+    display: block;
+    color: var(--color-gray-600);
+    font-size: 0.72rem;
+    margin-top: 2px;
+}
+
+.contact-type {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 0.78rem;
+    white-space: nowrap;
+}
+
+.contact-type-llamada { color: #16704a; }
+.contact-type-whatsapp { color: #168c4a; }
+.contact-type-email { color: #23659b; }
+.contact-type-presencial { color: #8a5d16; }
+.contact-type-otro { color: var(--color-gray-600); }
+
+.communication-comment {
+    max-width: 300px;
+    min-width: 180px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.communications-no-contact-card {
+    margin-top: 28px;
+}
+
+.contact-age {
+    color: var(--color-danger);
+    font-size: 0.82rem;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.empty-state {
+    padding: 42px 20px !important;
+    color: var(--color-gray-600);
+    text-align: center;
+}
+
+.empty-state i,
+.empty-state span {
+    display: block;
+}
+
+.empty-state i {
+    font-size: 1.8rem;
+    margin-bottom: 8px;
+    color: var(--color-gray-400);
+}
+
 /* Tabla de admin */
 .admin-table-card {
     margin-bottom: 28px;
@@ -325,6 +467,22 @@
 
 /* Responsive */
 @media (max-width: 768px) {
+    .communications-header {
+        flex-direction: column;
+    }
+
+    .communications-stats {
+        grid-template-columns: 1fr;
+    }
+
+    .communication-filter-actions {
+        width: 100%;
+    }
+
+    .communication-filter-actions .btn {
+        flex: 1;
+    }
+
     .admin-filters {
         flex-direction: column;
     }
