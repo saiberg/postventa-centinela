@@ -329,7 +329,7 @@ include 'includes/header.php';
                             $diasAntiguedad = max(0, (int)floor((time() - strtotime($pendiente['created_at'])) / 86400));
                             $nombreProyecto = isset($pendiente['obra_nombre']) && trim($pendiente['obra_nombre']) !== '' ? trim($pendiente['obra_nombre']) : 'Sin proyecto';
                         ?>
-                            <tr><td class="dashboard2-number">#<?php echo (int)$pendiente['id']; ?></td><td><?php echo date('d/m/Y', strtotime($pendiente['created_at'])); ?></td><td><?php echo htmlspecialchars($nombreProyecto); ?></td><td><?php echo htmlspecialchars(isset($pendiente['nombre']) ? $pendiente['nombre'] : '—'); ?></td><td><?php echo htmlspecialchars(isset($pendiente['categoria']) ? $pendiente['categoria'] : '—'); ?></td><td><span class="dashboard2-badge"><?php echo $diasAntiguedad; ?> días</span></td></tr>
+                            <tr class="dashboard2-antiguos-row" data-request-project="<?php echo htmlspecialchars($nombreProyecto); ?>"><td class="dashboard2-number">#<?php echo (int)$pendiente['id']; ?></td><td><?php echo date('d/m/Y', strtotime($pendiente['created_at'])); ?></td><td><?php echo htmlspecialchars($nombreProyecto); ?></td><td><?php echo htmlspecialchars(isset($pendiente['nombre']) ? $pendiente['nombre'] : '—'); ?></td><td><?php echo htmlspecialchars(isset($pendiente['categoria']) ? $pendiente['categoria'] : '—'); ?></td><td><span class="dashboard2-badge"><?php echo $diasAntiguedad; ?> días</span></td></tr>
                         <?php endforeach; endif; ?>
                         </tbody>
                     </table>
@@ -416,73 +416,67 @@ include 'includes/header.php';
         var texto = document.getElementById('dashboard2RequestSearch').value.toLowerCase();
         var estado = document.getElementById('dashboard2RequestStatus').value;
         var proyecto = document.getElementById('dashboard2RequestProject').value;
-        console.log('Filtro proyecto:', proyecto);
         document.querySelectorAll('.dashboard2-request-row').forEach(function(row) {
             var coincideTexto = !texto || row.textContent.toLowerCase().indexOf(texto) !== -1;
             var coincideEstado = !estado || row.getAttribute('data-request-status') === estado;
             var coincideProyecto = !proyecto || row.getAttribute('data-request-project') === proyecto;
-            console.log('Fila:', row.getAttribute('data-request-project'), 'Coincide:', coincideProyecto);
             row.style.display = coincideTexto && coincideEstado && coincideProyecto ? '' : 'none';
         });
     }
     document.getElementById('dashboard2RequestSearch').addEventListener('input', filtrarSolicitudesDashboard2);
     document.getElementById('dashboard2RequestStatus').addEventListener('change', filtrarSolicitudesDashboard2);
-    document.getElementById('dashboard2RequestProject').addEventListener('change', filtrarSolicitudesDashboard2);
     
     function filtrarPorProyecto(proyectoSeleccionado) {
         var filasSolicitudes = document.querySelectorAll('.dashboard2-request-row');
-        var filasPendientes = document.querySelectorAll('.dashboard2-antiguos-row');
         var kpiTotal = document.querySelector('.dashboard2-kpi:nth-child(1) .dashboard2-kpi-value');
         var kpiPendientes = document.querySelector('.dashboard2-kpi:nth-child(2) .dashboard2-kpi-value');
         var kpiAprobados = document.querySelector('.dashboard2-kpi:nth-child(3) .dashboard2-kpi-value');
         var kpiResueltos = document.querySelector('.dashboard2-kpi:nth-child(4) .dashboard2-kpi-value');
         var kpiNoCorresponde = document.querySelector('.dashboard2-kpi:nth-child(5) .dashboard2-kpi-value');
-        
-        var totalProyectos = 0;
+
+        var total = 0;
         var totalPendientes = 0;
         var totalAprobados = 0;
         var totalResueltos = 0;
         var totalNoCorresponde = 0;
-        
+
         filasSolicitudes.forEach(function(fila) {
             var proyectoFila = fila.getAttribute('data-request-project');
             var coincide = !proyectoSeleccionado || proyectoFila === proyectoSeleccionado;
+            if (!coincide) return;
+
+            total++;
             var estadoFila = fila.getAttribute('data-request-status');
-            
-            if (coincide) {
-                fila.style.display = '';
-                if (estadoFila === 'pendiente') totalPendientes++;
-                if (estadoFila === 'aprobado') totalAprobados++;
-                if (estadoFila === 'resuelto') totalResueltos++;
-                if (estadoFila === 'no_corresponde') totalNoCorresponde++;
-            } else {
-                fila.style.display = 'none';
-            }
+            if (estadoFila === 'pendiente') totalPendientes++;
+            if (estadoFila === 'aprobado') totalAprobados++;
+            if (estadoFila === 'resuelto') totalResueltos++;
+            if (estadoFila === 'no_corresponde') totalNoCorresponde++;
         });
-        
-        var filasPendientesAntiguos = document.querySelectorAll('.dashboard2-antiguos-row');
-        filasPendientesAntiguos.forEach(function(fila) {
+
+        document.querySelectorAll('.dashboard2-antiguos-row').forEach(function(fila) {
             var proyectoFila = fila.getAttribute('data-request-project');
             var coincide = !proyectoSeleccionado || proyectoFila === proyectoSeleccionado;
             fila.style.display = coincide ? '' : 'none';
-            
-            if (coincide) {
-                var estadoFila = fila.getAttribute('data-request-status');
-                if (estadoFila === 'pendiente') totalPendientes++;
-                if (estadoFila === 'aprobado') totalAprobados++;
-                if (estadoFila === 'resuelto') totalResueltos++;
-                if (estadoFila === 'no_corresponde') totalNoCorresponde++;
-            }
         });
-        
-        kpiTotal.textContent = filasSolicitudes.length;
+
+        kpiTotal.textContent = total;
         kpiPendientes.textContent = totalPendientes;
         kpiAprobados.textContent = totalAprobados;
         kpiResueltos.textContent = totalResueltos;
         kpiNoCorresponde.textContent = totalNoCorresponde;
     }
-    
-    document.getElementById('dashboard2ProjectFilter').addEventListener('change', filtrarPorProyecto);
+
+    document.getElementById('dashboard2ProjectFilter').addEventListener('change', function() {
+        var proyecto = this.value;
+        document.getElementById('dashboard2RequestProject').value = proyecto;
+        filtrarPorProyecto(proyecto);
+        filtrarSolicitudesDashboard2();
+    });
+    document.getElementById('dashboard2RequestProject').addEventListener('change', function() {
+        document.getElementById('dashboard2ProjectFilter').value = this.value;
+        filtrarPorProyecto(this.value);
+        filtrarSolicitudesDashboard2();
+    });
 })();
 </script>
 

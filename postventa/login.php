@@ -91,8 +91,13 @@ $pageTitle = 'Iniciar Sesión';
                     
                     <div class="form-group">
                         <label for="password">Contraseña</label>
-                        <input type="password" id="password" name="password" class="form-control" 
-                               placeholder="Ingrese su contraseña" required>
+                        <div class="password-input-wrap">
+                            <input type="password" id="password" name="password" class="form-control" 
+                                   placeholder="Ingrese su contraseña" required>
+                            <button type="button" class="password-toggle-btn" aria-label="Mostrar contraseña" aria-pressed="false">
+                                <i class="fas fa-eye" aria-hidden="true"></i>
+                            </button>
+                        </div>
                     </div>
                     
                     <div class="remember-row">
@@ -129,5 +134,22 @@ $pageTitle = 'Iniciar Sesión';
     
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="assets/js/main.js"></script>
+    <script>
+    (function() {
+        var toggleBtn = document.querySelector('.password-toggle-btn');
+        var passwordInput = document.getElementById('password');
+        if (!toggleBtn || !passwordInput) return;
+
+        toggleBtn.addEventListener('click', function() {
+            var icon = this.querySelector('i');
+            var isVisible = passwordInput.type === 'text';
+            passwordInput.type = isVisible ? 'password' : 'text';
+            icon.classList.toggle('fa-eye', isVisible);
+            icon.classList.toggle('fa-eye-slash', !isVisible);
+            this.setAttribute('aria-label', isVisible ? 'Mostrar contraseña' : 'Ocultar contraseña');
+            this.setAttribute('aria-pressed', isVisible ? 'false' : 'true');
+        });
+    })();
+    </script>
 </body>
 </html>
