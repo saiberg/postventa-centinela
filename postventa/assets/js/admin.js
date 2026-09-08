@@ -225,14 +225,27 @@ function showAprobarConfirm(caseId, urgencia, $btn, $row, onSuccess) {
 $(document).ready(function() {
     
     // --- Abrir modal de detalle ---
-    $('.view-case').on('click', function() {
-        var caseId = $(this).data('case-id');
-        // En producción, esto cargaría datos vía AJAX
-        // Por ahora mostramos datos fijos de la maqueta
+    function openCaseModal(caseId) {
         loadCaseDetail(caseId);
         $('#caseModal').addClass('show');
         $('body').css('overflow', 'hidden');
+    }
+
+    $('.view-case').on('click', function() {
+        openCaseModal($(this).data('case-id'));
     });
+
+    var casoUrl = parseInt(new URLSearchParams(window.location.search).get('caso'), 10);
+    if (casoUrl) {
+        openCaseModal(casoUrl);
+        var $row = $('.view-case[data-case-id="' + casoUrl + '"]').closest('tr');
+        if ($row.length) {
+            $row.addClass('case-row-highlight');
+            if ($row[0].scrollIntoView) {
+                $row[0].scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+        }
+    }
     
     // --- Cerrar modal (botones con clase modal-close o modal-close-btn, y overlay) ---
     $(document).on('click', '.modal-close, .modal-close-btn', function() {

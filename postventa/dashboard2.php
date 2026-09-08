@@ -121,6 +121,17 @@ uasort($pendientesPorProyecto, function($a, $b) {
     return $b['casos_pendientes'] - $a['casos_pendientes'];
 });
 
+$solicitudesParaGraficos = array();
+foreach ($solicitudes as $solicitud) {
+    $estadoGrafico = isset($solicitud['estado']) && isset($estadoTotals[$solicitud['estado']]) ? $solicitud['estado'] : 'pendiente';
+    $categoriaOriginalGrafico = isset($solicitud['categoria']) ? $solicitud['categoria'] : 'Sin categoría';
+    $solicitudesParaGraficos[] = array(
+        'proyecto' => isset($solicitud['obra_nombre']) && trim($solicitud['obra_nombre']) !== '' ? trim($solicitud['obra_nombre']) : 'Sin proyecto',
+        'estado' => $estadoGrafico,
+        'categoria' => isset($categorias[$categoriaOriginalGrafico]) ? $categorias[$categoriaOriginalGrafico] : $categoriaOriginalGrafico
+    );
+}
+
 $totalSolicitudes = count($solicitudes);
 $totalPendientes = $estadoTotals['pendiente'];
 $totalEnGestion = $estadoTotals['aprobado'];
@@ -201,7 +212,9 @@ include 'includes/header.php';
 .dashboard2-project-select:hover { background:#fff; }
 .dashboard2-project-select:focus { outline:none; border-color:#608418; background:#fff; }
 .dashboard2-requests-table tbody tr:hover { background:#edf5e9; }
+.dashboard2-action { color:#608418; font-weight:700; text-decoration:none; white-space:nowrap; }
 .dashboard2-requests-table .dashboard2-action { color:#608418; font-weight:700; text-decoration:none; white-space:nowrap; }
+.dashboard2-action + .dashboard2-action { margin-left:10px; }
 @media (max-width:800px) { .dashboard2-kpis { grid-template-columns:1fr 1fr; } .dashboard2-grid { grid-template-columns:1fr; } .dashboard2-panel-wide { grid-column:auto; } .dashboard2-header { align-items:flex-start; flex-direction:column; } .dashboard2-header-filters { width:100%; margin-top:10px; } .dashboard2-header-filters select { width:100%; } }
 @media (max-width:650px) { .dashboard2-chart { min-height:0; } .dashboard2-chart-layout { grid-template-columns:1fr; gap:14px; } .dashboard2-chart-layout .dashboard2-chart { height:260px; } .dashboard2-chart-side { border-left:0; border-top:1px solid #e8ece7; padding:14px 0 0; } .dashboard2-category-summary { grid-template-columns:1fr 1fr; } }
 @media (max-width:520px) { .dashboard2-kpis { grid-template-columns:1fr; } .dashboard2-container { padding:20px 12px 30px; } }
@@ -243,7 +256,7 @@ include 'includes/header.php';
                             <?php foreach ($estados as $estadoClave => $estadoNombre):
                                 $porcentajeEstado = $totalSolicitudes > 0 ? ($estadoTotals[$estadoClave] / $totalSolicitudes) * 100 : 0;
                             ?>
-                            <div class="dashboard2-chart-stat">
+                            <div class="dashboard2-chart-stat" data-estado-key="<?php echo htmlspecialchars($estadoClave); ?>">
                                 <span class="dashboard2-chart-dot" style="background:<?php echo isset($coloresEstado[$estadoClave]) ? $coloresEstado[$estadoClave] : '#608418'; ?>;"></span>
                                 <span class="dashboard2-chart-stat-label"><?php echo htmlspecialchars($estadoNombre); ?><span class="dashboard2-chart-stat-percent"><?php echo number_format($porcentajeEstado, 1, ',', '.'); ?>%</span></span>
                                 <span class="dashboard2-chart-stat-value"><?php echo $estadoTotals[$estadoClave]; ?></span>
@@ -267,7 +280,7 @@ include 'includes/header.php';
                                 $cerradosCategoria = $valoresCategoria['resuelto'] + $valoresCategoria['no_corresponde'];
                                 $porcentajeCategoria = $totalSolicitudes > 0 ? ($totalCategoria / $totalSolicitudes) * 100 : 0;
                             ?>
-                                <div class="dashboard2-category-item">
+                                <div class="dashboard2-category-item" data-categoria-name="<?php echo htmlspecialchars($categoriaNombre); ?>">
                                     <div class="dashboard2-category-name"><?php echo htmlspecialchars($categoriaNombre); ?></div>
                                     <div class="dashboard2-category-total"><?php echo $totalCategoria; ?> casos</div>
                                     <div class="dashboard2-category-meta"><?php echo number_format($porcentajeCategoria, 1, ',', '.'); ?>% del total · <?php echo $abiertosCategoria; ?> abiertos · <?php echo $cerradosCategoria; ?> cerrados</div>
@@ -321,15 +334,23 @@ include 'includes/header.php';
                 <div class="dashboard2-panel-header"><h2>Solicitudes más antiguas sin acción</h2><p>Casos pendientes ordenados desde el más antiguo. Se considera sin acción un caso en estado pendiente.</p></div>
                 <div class="dashboard2-table-wrap">
                     <table class="dashboard2-table">
-                        <thead><tr><th>N° caso</th><th>Fecha ingreso</th><th>Proyecto</th><th>Cliente</th><th>Categoría</th><th>Antigüedad</th></tr></thead>
+                        <thead><tr><th>N° caso</th><th>Fecha ingreso</th><th>Proyecto</th><th>Cliente</th><th>Categoría</th><th>Antigüedad</th><th>Acción</th></tr></thead>
                         <tbody>
                         <?php if (empty($pendientesAntiguos)): ?>
-                            <tr><td colspan="6" class="dashboard2-empty">No hay solicitudes pendientes sin acción.</td></tr>
+                            <tr><td colspan="7" class="dashboard2-empty">No hay solicitudes pendientes sin acción.</td></tr>
                         <?php else: foreach ($pendientesAntiguos as $pendiente):
                             $diasAntiguedad = max(0, (int)floor((time() - strtotime($pendiente['created_at'])) / 86400));
                             $nombreProyecto = isset($pendiente['obra_nombre']) && trim($pendiente['obra_nombre']) !== '' ? trim($pendiente['obra_nombre']) : 'Sin proyecto';
                         ?>
-                            <tr class="dashboard2-antiguos-row" data-request-project="<?php echo htmlspecialchars($nombreProyecto); ?>"><td class="dashboard2-number">#<?php echo (int)$pendiente['id']; ?></td><td><?php echo date('d/m/Y', strtotime($pendiente['created_at'])); ?></td><td><?php echo htmlspecialchars($nombreProyecto); ?></td><td><?php echo htmlspecialchars(isset($pendiente['nombre']) ? $pendiente['nombre'] : '—'); ?></td><td><?php echo htmlspecialchars(isset($pendiente['categoria']) ? $pendiente['categoria'] : '—'); ?></td><td><span class="dashboard2-badge"><?php echo $diasAntiguedad; ?> días</span></td></tr>
+                            <tr class="dashboard2-antiguos-row" data-request-project="<?php echo htmlspecialchars($nombreProyecto); ?>">
+                                <td class="dashboard2-number">#<?php echo (int)$pendiente['id']; ?></td>
+                                <td><?php echo date('d/m/Y', strtotime($pendiente['created_at'])); ?></td>
+                                <td><?php echo htmlspecialchars($nombreProyecto); ?></td>
+                                <td><?php echo htmlspecialchars(isset($pendiente['nombre']) ? $pendiente['nombre'] : '—'); ?></td>
+                                <td><?php echo htmlspecialchars(isset($pendiente['categoria']) ? $pendiente['categoria'] : '—'); ?></td>
+                                <td><span class="dashboard2-badge"><?php echo $diasAntiguedad; ?> días</span></td>
+                                <td><a class="dashboard2-action" href="admin.php?caso=<?php echo (int)$pendiente['id']; ?>"><i class="fas fa-cogs"></i> Gestionar</a></td>
+                            </tr>
                         <?php endforeach; endif; ?>
                         </tbody>
                     </table>
@@ -373,7 +394,10 @@ include 'includes/header.php';
                                 <td><?php echo htmlspecialchars(isset($solicitud['ubicacion_valor']) ? $solicitud['ubicacion_valor'] : '—'); ?></td>
                                 <td><?php echo htmlspecialchars($proyectoSolicitud); ?></td>
                                 <td><span class="dashboard2-badge dashboard2-status dashboard2-status-<?php echo htmlspecialchars($estadoSolicitud); ?>"><?php echo htmlspecialchars($estadoNombre); ?></span></td>
-                                <td><a class="dashboard2-action" href="detalle-caso.php?id=<?php echo (int)$solicitud['id']; ?>"><i class="fas fa-eye"></i> Ver</a></td>
+                                <td>
+                                    <a class="dashboard2-action" href="detalle-caso.php?id=<?php echo (int)$solicitud['id']; ?>"><i class="fas fa-eye"></i> Ver</a>
+                                    <a class="dashboard2-action" href="admin.php?caso=<?php echo (int)$solicitud['id']; ?>"><i class="fas fa-cogs"></i> Gestionar</a>
+                                </td>
                             </tr>
                         <?php endforeach; ?>
                         <?php if (empty($solicitudes)): ?>
@@ -395,9 +419,10 @@ include 'includes/header.php';
     var categoriaLabels = <?php echo json_encode(array_keys($porCategoriaEstado)); ?>;
     var categoriaData = <?php echo json_encode(array_values($porCategoriaEstado)); ?>;
     var estadoKeys = <?php echo json_encode(array_keys($estados)); ?>;
+    var solicitudesGraficos = <?php echo json_encode($solicitudesParaGraficos); ?>;
     var colores = ['#e39b32', '#608418', '#2e936f', '#c95b6b'];
 
-    new Chart(document.getElementById('estadoGeneralChart'), {
+    var estadoGeneralChart = new Chart(document.getElementById('estadoGeneralChart'), {
         type: 'doughnut',
         data: { labels: estadoLabels, datasets: [{ data: estadoData, backgroundColor: colores, borderWidth: 2, borderColor: '#fff' }] },
         options: { responsive:true, maintainAspectRatio:false, plugins:{ legend:{ display:false } } }
@@ -406,11 +431,82 @@ include 'includes/header.php';
     var datasets = estadoKeys.map(function(key, index) {
         return { label: estadoLabels[index], data: categoriaData.map(function(item) { return item[key] || 0; }), backgroundColor: colores[index], borderRadius: 2 };
     });
-    new Chart(document.getElementById('estadoCategoriaChart'), {
+    var estadoCategoriaChart = new Chart(document.getElementById('estadoCategoriaChart'), {
         type: 'bar',
         data: { labels: categoriaLabels, datasets: datasets },
         options: { responsive:true, maintainAspectRatio:false, scales:{ x:{ stacked:false, ticks:{ font:{ size:10 } } }, y:{ beginAtZero:true, ticks:{ precision:0 } } }, plugins:{ legend:{ display:false } } }
     });
+
+    function formatearPorcentaje(valor) {
+        return valor.toFixed(1).replace('.', ',') + '%';
+    }
+
+    function calcularDatosGraficos(proyectoSeleccionado) {
+        var totalesEstado = {};
+        var porCategoria = {};
+        estadoKeys.forEach(function(key) { totalesEstado[key] = 0; });
+        categoriaLabels.forEach(function(nombre) {
+            porCategoria[nombre] = {};
+            estadoKeys.forEach(function(key) { porCategoria[nombre][key] = 0; });
+        });
+
+        var total = 0;
+        solicitudesGraficos.forEach(function(item) {
+            if (proyectoSeleccionado && item.proyecto !== proyectoSeleccionado) return;
+            total++;
+            if (totalesEstado.hasOwnProperty(item.estado)) {
+                totalesEstado[item.estado]++;
+            }
+            if (!porCategoria[item.categoria]) {
+                porCategoria[item.categoria] = {};
+                estadoKeys.forEach(function(key) { porCategoria[item.categoria][key] = 0; });
+                if (categoriaLabels.indexOf(item.categoria) === -1) {
+                    categoriaLabels.push(item.categoria);
+                }
+            }
+            if (porCategoria[item.categoria].hasOwnProperty(item.estado)) {
+                porCategoria[item.categoria][item.estado]++;
+            }
+        });
+
+        return { total: total, totalesEstado: totalesEstado, porCategoria: porCategoria };
+    }
+
+    function actualizarGraficos(proyectoSeleccionado) {
+        var datos = calcularDatosGraficos(proyectoSeleccionado);
+        var valoresEstado = estadoKeys.map(function(key) { return datos.totalesEstado[key] || 0; });
+        estadoGeneralChart.data.datasets[0].data = valoresEstado;
+        estadoGeneralChart.update();
+
+        estadoCategoriaChart.data.labels = categoriaLabels;
+        estadoCategoriaChart.data.datasets.forEach(function(dataset, index) {
+            var key = estadoKeys[index];
+            dataset.data = categoriaLabels.map(function(nombre) {
+                return datos.porCategoria[nombre] && datos.porCategoria[nombre][key] ? datos.porCategoria[nombre][key] : 0;
+            });
+        });
+        estadoCategoriaChart.update();
+
+        document.querySelectorAll('.dashboard2-chart-stat[data-estado-key]').forEach(function(stat) {
+            var key = stat.getAttribute('data-estado-key');
+            var valor = datos.totalesEstado[key] || 0;
+            var porcentaje = datos.total > 0 ? (valor / datos.total) * 100 : 0;
+            stat.querySelector('.dashboard2-chart-stat-value').textContent = valor;
+            stat.querySelector('.dashboard2-chart-stat-percent').textContent = formatearPorcentaje(porcentaje);
+        });
+
+        document.querySelectorAll('.dashboard2-category-item[data-categoria-name]').forEach(function(item) {
+            var nombre = item.getAttribute('data-categoria-name');
+            var valores = datos.porCategoria[nombre] || {};
+            var totalCategoria = 0;
+            estadoKeys.forEach(function(key) { totalCategoria += valores[key] || 0; });
+            var abiertos = (valores.pendiente || 0) + (valores.aprobado || 0);
+            var cerrados = (valores.resuelto || 0) + (valores.no_corresponde || 0);
+            var porcentaje = datos.total > 0 ? (totalCategoria / datos.total) * 100 : 0;
+            item.querySelector('.dashboard2-category-total').textContent = totalCategoria + ' casos';
+            item.querySelector('.dashboard2-category-meta').textContent = formatearPorcentaje(porcentaje) + ' del total · ' + abiertos + ' abiertos · ' + cerrados + ' cerrados';
+        });
+    }
 
     function filtrarSolicitudesDashboard2() {
         var texto = document.getElementById('dashboard2RequestSearch').value.toLowerCase();
@@ -464,6 +560,7 @@ include 'includes/header.php';
         kpiAprobados.textContent = totalAprobados;
         kpiResueltos.textContent = totalResueltos;
         kpiNoCorresponde.textContent = totalNoCorresponde;
+        actualizarGraficos(proyectoSeleccionado);
     }
 
     document.getElementById('dashboard2ProjectFilter').addEventListener('change', function() {

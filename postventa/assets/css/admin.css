@@ -226,6 +226,12 @@
     background: var(--color-primary-bg) !important;
 }
 
+.admin-table .case-row-highlight {
+    background: #eef6e4 !important;
+    outline: 2px solid #608418;
+    outline-offset: -2px;
+}
+
 /* Botones de acción */
 .action-buttons {
     display: flex;
