@@ -804,3 +804,31 @@ table tbody tr:hover {
         font-size: 0.8rem;
     }
 }
+
+/* Toast notifications globales */
+.app-toast {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 9999;
+    padding: 14px 20px;
+    border-radius: var(--radius-md, 8px);
+    color: #fff;
+    font-size: 0.88rem;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    box-shadow: var(--shadow-lg, 0 10px 25px rgba(0,0,0,0.15));
+    transform: translateX(120%);
+    transition: transform 0.3s ease;
+    max-width: 420px;
+    line-height: 1.4;
+}
+.app-toast.show { transform: translateX(0); }
+.app-toast i { font-size: 1.1rem; flex-shrink: 0; }
+.app-toast-success { background: #28a745; }
+.app-toast-error   { background: #dc3545; }
+.app-toast-info    { background: #17a2b8; }
+.app-toast-warning { background: #e67e22; }
+

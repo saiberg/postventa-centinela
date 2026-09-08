@@ -330,25 +330,8 @@ $(document).ready(function() {
         );
     });
     
-    // --- Filtros ---
-    $('#filterEstado').on('change', function() {
-        var estado = $(this).val();
-        if (estado) {
-            $('.case-row').hide();
-            $('.case-row[data-estado="' + estado + '"]').show();
-        } else {
-            $('.case-row').show();
-        }
-    });
-    
-    $('#filterSearch').on('keyup', function() {
-        var search = $(this).val().toLowerCase();
-        $('.case-row').each(function() {
-            var text = $(this).text().toLowerCase();
-            $(this).toggle(text.indexOf(search) > -1);
-        });
-    });
-    
+    // Nota: Los filtros combinados (estado, rol, categoría, obra y búsqueda) 
+    // se gestionan de manera unificada a través de applyFilters() en admin.php.
 });
 
 function loadCaseDetail(caseId) {
@@ -555,3 +538,159 @@ $(document).on('click', '#registrarComunicacionBtn', function() {
         }
     });
 });
+
+// ==================== EXPORTACIÓN A EXCEL (SheetJS) ====================
+$(document).on('click', '#exportBtn', function(e) {
+    e.preventDefault();
+    
+    if (typeof XLSX === 'undefined') {
+        showToast('La librería para exportar a Excel no se ha cargado. Verifique su conexión.', 'error');
+        return;
+    }
+    
+    var $btn = $(this);
+    var originalHtml = $btn.html();
+    $btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Exportando...');
+    
+    try {
+        // Obtener los IDs de casos visibles (según los filtros aplicados en pantalla)
+        var visibleCaseIds = [];
+        var totalRows = $('.case-row').length;
+        
+        $('.case-row:visible').each(function() {
+            var caseId = $(this).data('case-id');
+            if (caseId !== undefined && caseId !== null && caseId !== '') {
+                visibleCaseIds.push(String(caseId));
+            }
+        });
+        
+        // Si hay filas pero ninguna visible por los filtros
+        if (totalRows > 0 && $('.case-row:visible').length === 0) {
+            showToast('No hay solicitudes visibles que coincidan con los filtros actuales.', 'warning');
+            $btn.prop('disabled', false).html(originalHtml);
+            return;
+        }
+        
+        var allData = window.adminSolicitudesData || [];
+        var exportRows = [];
+        
+        var estadoLabels = {
+            'pendiente': 'Pendiente',
+            'aprobado': 'Aprobado',
+            'resuelto': 'Resuelto',
+            'no_corresponde': 'No Corresponde'
+        };
+        
+        if (allData.length > 0) {
+            // Filtrar del array enriquecido los casos que están visibles
+            var dataToExport = allData.filter(function(item) {
+                if (visibleCaseIds.length === 0) {
+                    return true;
+                }
+                return visibleCaseIds.indexOf(String(item.id_num)) !== -1;
+            });
+            
+            if (dataToExport.length === 0) {
+                showToast('No hay solicitudes para exportar con los filtros actuales.', 'warning');
+                $btn.prop('disabled', false).html(originalHtml);
+                return;
+            }
+            
+            exportRows = dataToExport.map(function(item) {
+                var est = estadoLabels[item.estado] || item.estado || 'Pendiente';
+                var urg = (item.urgencia == 1 || item.urgencia === '1') ? 'Urgente' : 'Normal';
+                
+                return {
+                    'N° Caso': item.id || ('#' + item.id_num),
+                    'Fecha Ingreso': item.fecha || '',
+                    'RUT': item.rut || '',
+                    'Cliente': item.nombre || '',
+                    'Teléfono': item.telefono || '',
+                    'Email': item.email || '',
+                    'Rol Solicitante': item.rol || 'Propietario',
+                    'Proyecto / Obra': item.obra_nombre || '',
+                    'Ubicación': item.ubicacion || '',
+                    'Categoría': item.categoria || '',
+                    'Subcategoría': item.subcategoria || '',
+                    'Detalle del Reclamo': item.detalle || '',
+                    'Días Disponibles Visita': item.dias || '',
+                    'Estado': est,
+                    'Prioridad': urg
+                };
+            });
+        } else {
+            // Respaldo secundario: leer directamente del DOM si no existe window.adminSolicitudesData
+            var $visibleRows = $('.case-row:visible');
+            if ($visibleRows.length === 0) {
+                showToast('No hay solicitudes visibles para exportar.', 'warning');
+                $btn.prop('disabled', false).html(originalHtml);
+                return;
+            }
+            
+            $visibleRows.each(function() {
+                var cells = $(this).find('td');
+                if (cells.length >= 9) {
+                    exportRows.push({
+                        'N° Caso': $(cells[0]).text().trim(),
+                        'Fecha Ingreso': $(cells[1]).text().trim(),
+                        'Cliente': $(cells[2]).text().trim(),
+                        'Rol Solicitante': $(cells[3]).text().trim(),
+                        'Categoría': $(cells[4]).text().trim(),
+                        'Proyecto / Obra': $(cells[5]).text().trim(),
+                        'Ubicación': $(cells[6]).text().trim(),
+                        'Estado': $(cells[7]).text().trim(),
+                        'Prioridad': $(cells[8]).text().trim()
+                    });
+                }
+            });
+        }
+        
+        if (exportRows.length === 0) {
+            showToast('No se encontraron registros para exportar.', 'warning');
+            $btn.prop('disabled', false).html(originalHtml);
+            return;
+        }
+        
+        // Crear hoja y libro con SheetJS
+        var ws = XLSX.utils.json_to_sheet(exportRows);
+        
+        // Configurar anchos de columna recomendados
+        ws['!cols'] = [
+            { wch: 15 }, // N° Caso
+            { wch: 14 }, // Fecha Ingreso
+            { wch: 14 }, // RUT
+            { wch: 26 }, // Cliente
+            { wch: 16 }, // Teléfono
+            { wch: 28 }, // Email
+            { wch: 16 }, // Rol Solicitante
+            { wch: 24 }, // Proyecto / Obra
+            { wch: 22 }, // Ubicación
+            { wch: 25 }, // Categoría
+            { wch: 25 }, // Subcategoría
+            { wch: 45 }, // Detalle del Reclamo
+            { wch: 26 }, // Días Disponibles Visita
+            { wch: 16 }, // Estado
+            { wch: 12 }  // Prioridad
+        ];
+        
+        var wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, 'Solicitudes');
+        
+        // Nombre del archivo: Solicitudes_Postventa_YYYY-MM-DD.xlsx
+        var now = new Date();
+        var yyyy = now.getFullYear();
+        var mm = String(now.getMonth() + 1).padStart(2, '0');
+        var dd = String(now.getDate()).padStart(2, '0');
+        var fileName = 'Solicitudes_Postventa_' + yyyy + '-' + mm + '-' + dd + '.xlsx';
+        
+        XLSX.writeFile(wb, fileName);
+        
+        showToast('Se han exportado ' + exportRows.length + ' solicitud(es) a Excel con éxito.', 'success');
+    } catch (err) {
+        console.error('Error al exportar a Excel:', err);
+        showToast('Error al generar el archivo Excel: ' + (err.message || ''), 'error');
+    } finally {
+        $btn.prop('disabled', false).html(originalHtml);
+    }
+});
+

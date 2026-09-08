@@ -39,3 +39,29 @@ $(document).ready(function() {
     });
     
 });
+
+// Sistema global de notificaciones Toast
+if (typeof window.showToast !== 'function') {
+    window.showToast = function(message, type, duration) {
+        type = type || 'info';
+        duration = duration || 4000;
+        
+        var icons = { 
+            success: 'fa-check-circle', 
+            error: 'fa-exclamation-circle', 
+            info: 'fa-info-circle', 
+            warning: 'fa-exclamation-triangle' 
+        };
+        var icon = icons[type] || icons.info;
+        
+        var $toast = $('<div class="app-toast app-toast-' + type + '"><i class="fas ' + icon + '"></i><span>' + message + '</span></div>');
+        $('body').append($toast);
+        
+        setTimeout(function() { $toast.addClass('show'); }, 10);
+        setTimeout(function() {
+            $toast.removeClass('show');
+            setTimeout(function() { $toast.remove(); }, 300);
+        }, duration);
+    };
+}
+

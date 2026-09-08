@@ -300,6 +300,7 @@ include 'includes/header.php';
                                 ][$sol['estado']];
                             ?>
                             <tr class="case-row" 
+                                data-case-id="<?php echo $sol['id_num']; ?>"
                                 data-estado="<?php echo $sol['estado']; ?>" 
                                 data-rol="<?php echo $sol['rol']; ?>"
                                 data-obra="<?php echo $sol['obra_id']; ?>"
@@ -522,20 +523,13 @@ include 'includes/header.php';
 </div>
 
 <script>
-// Filtros adicionales del admin
+// Filtros unificados del admin
 $(document).ready(function() {
-    // Filtro por rol
-    $('#filterRol').on('change', function() {
+    $('#filterEstado, #filterRol, #filterCategoria, #filterObra').on('change', function() {
         applyFilters();
     });
     
-    // Filtro por categoría
-    $('#filterCategoria').on('change', function() {
-        applyFilters();
-    });
-    
-    // Filtro por obra
-    $('#filterObra').on('change', function() {
+    $('#filterSearch').on('keyup', function() {
         applyFilters();
     });
     
@@ -565,6 +559,13 @@ $(document).ready(function() {
         });
     }
 });
+</script>
+
+<!-- Librería SheetJS para exportación a Excel (.xlsx) -->
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script>
+// Dataset completo de solicitudes para exportación enriquecida
+window.adminSolicitudesData = <?php echo json_encode($solicitudes, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_UNESCAPED_UNICODE); ?>;
 </script>
 
 <?php include 'includes/footer.php'; ?>
