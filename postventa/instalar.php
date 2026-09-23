@@ -12,8 +12,8 @@ if ($conn->connect_error) {
 }
 $conn->set_charset(DB_CHARSET);
 
-// ========== TABLA: icentPventaUsuarios ==========
-$sqlUsuarios = "CREATE TABLE IF NOT EXISTS `icentPventaUsuarios` (
+// ========== TABLA: icentpventausuarios ==========
+$sqlUsuarios = "CREATE TABLE IF NOT EXISTS `icentpventausuarios` (
     `id` INT(11) NOT NULL AUTO_INCREMENT,
     `rut` VARCHAR(20) DEFAULT NULL,
     `nombre` VARCHAR(150) NOT NULL,
@@ -33,11 +33,11 @@ $sqlUsuarios = "CREATE TABLE IF NOT EXISTS `icentPventaUsuarios` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_general_ci";
 
 if (!$conn->query($sqlUsuarios)) {
-    die('<div class="alert alert-danger">Error al crear icentPventaUsuarios: ' . $conn->error . '</div>');
+    die('<div class="alert alert-danger">Error al crear icentpventausuarios: ' . $conn->error . '</div>');
 }
 
-// ========== TABLA: icentPventaSolicitudes ==========
-$sqlSolicitudes = "CREATE TABLE IF NOT EXISTS `icentPventaSolicitudes` (
+// ========== TABLA: icentpventasolicitudes ==========
+$sqlSolicitudes = "CREATE TABLE IF NOT EXISTS `icentpventasolicitudes` (
     `id` INT(11) NOT NULL AUTO_INCREMENT,
     `usuario_id` INT(11) NOT NULL,
     `ubicacion_valor` VARCHAR(100) DEFAULT NULL,
@@ -66,23 +66,23 @@ $sqlSolicitudes = "CREATE TABLE IF NOT EXISTS `icentPventaSolicitudes` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_general_ci";
 
 if (!$conn->query($sqlSolicitudes)) {
-    die('<div class="alert alert-danger">Error al crear icentPventaSolicitudes: ' . $conn->error . '</div>');
+    die('<div class="alert alert-danger">Error al crear icentpventasolicitudes: ' . $conn->error . '</div>');
 }
 
 // Migración para instalaciones existentes
-$columnaMotivo = $conn->query("SHOW COLUMNS FROM icentPventaSolicitudes LIKE 'motivo_rechazo'");
+$columnaMotivo = $conn->query("SHOW COLUMNS FROM icentpventasolicitudes LIKE 'motivo_rechazo'");
 if ($columnaMotivo && $columnaMotivo->num_rows === 0) {
-    if (!$conn->query("ALTER TABLE icentPventaSolicitudes ADD COLUMN motivo_rechazo TEXT DEFAULT NULL AFTER comentario_admin")) {
+    if (!$conn->query("ALTER TABLE icentpventasolicitudes ADD COLUMN motivo_rechazo TEXT DEFAULT NULL AFTER comentario_admin")) {
         die('<div class="alert alert-danger">Error al agregar motivo_rechazo: ' . $conn->error . '</div>');
     }
 }
 
 // Migrar estados antiguos antes de retirar sus valores del ENUM
-$conn->query("UPDATE icentPventaSolicitudes SET estado = 'aprobado' WHERE estado IN ('agendado', 'en_proceso')");
-$conn->query("ALTER TABLE icentPventaSolicitudes MODIFY estado ENUM('pendiente','aprobado','no_corresponde','resuelto') NOT NULL DEFAULT 'pendiente'");
+$conn->query("UPDATE icentpventasolicitudes SET estado = 'aprobado' WHERE estado IN ('agendado', 'en_proceso')");
+$conn->query("ALTER TABLE icentpventasolicitudes MODIFY estado ENUM('pendiente','aprobado','no_corresponde','resuelto') NOT NULL DEFAULT 'pendiente'");
 
-// ========== TABLA: icentPventaArchivos ==========
-$sqlArchivos = "CREATE TABLE IF NOT EXISTS `icentPventaArchivos` (
+// ========== TABLA: icentpventaarchivos ==========
+$sqlArchivos = "CREATE TABLE IF NOT EXISTS `icentpventaarchivos` (
     `id` INT(11) NOT NULL AUTO_INCREMENT,
     `solicitud_id` INT(11) NOT NULL,
     `nombre_original` VARCHAR(255) NOT NULL,
@@ -96,11 +96,11 @@ $sqlArchivos = "CREATE TABLE IF NOT EXISTS `icentPventaArchivos` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_general_ci";
 
 if (!$conn->query($sqlArchivos)) {
-    die('<div class="alert alert-danger">Error al crear icentPventaArchivos: ' . $conn->error . '</div>');
+    die('<div class="alert alert-danger">Error al crear icentpventaarchivos: ' . $conn->error . '</div>');
 }
 
-// ========== TABLA: icentPventaSeguimiento ==========
-$sqlSeguimiento = "CREATE TABLE IF NOT EXISTS `icentPventaSeguimiento` (
+// ========== TABLA: icentpventaseguimiento ==========
+$sqlSeguimiento = "CREATE TABLE IF NOT EXISTS `icentpventaseguimiento` (
     `id` INT(11) NOT NULL AUTO_INCREMENT,
     `solicitud_id` INT(11) NOT NULL,
     `usuario_id` INT(11) DEFAULT NULL,
@@ -112,24 +112,24 @@ $sqlSeguimiento = "CREATE TABLE IF NOT EXISTS `icentPventaSeguimiento` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_general_ci";
 
 if (!$conn->query($sqlSeguimiento)) {
-    die('<div class="alert alert-danger">Error al crear icentPventaSeguimiento: ' . $conn->error . '</div>');
+    die('<div class="alert alert-danger">Error al crear icentpventaseguimiento: ' . $conn->error . '</div>');
 }
 
 // ========== Insertar usuarios de prueba ==========
 // Admin del sistema
 $adminPassword = password_hash('admin123', PASSWORD_BCRYPT);
-$sqlAdmin = "INSERT IGNORE INTO `icentPventaUsuarios` (`rut`, `nombre`, `email`, `password`, `telefono`, `rol`) 
+$sqlAdmin = "INSERT IGNORE INTO `icentpventausuarios` (`rut`, `nombre`, `email`, `password`, `telefono`, `rol`) 
              VALUES ('99.999.999-9', 'Admin Postventa', 'admin@icentinela.cl', '$adminPassword', '+56 9 9999 9999', 'admin_sistema')";
 $conn->query($sqlAdmin);
 
 // Usuario propietario de prueba
 $userPassword = password_hash('cliente123', PASSWORD_BCRYPT);
-$sqlUser = "INSERT IGNORE INTO `icentPventaUsuarios` (`rut`, `nombre`, `email`, `password`, `telefono`, `rol`) 
+$sqlUser = "INSERT IGNORE INTO `icentpventausuarios` (`rut`, `nombre`, `email`, `password`, `telefono`, `rol`) 
             VALUES ('12.345.678-9', 'Carlos Muñoz R.', 'carlos@email.com', '$userPassword', '+56 9 1234 5678', 'propietario')";
 $conn->query($sqlUser);
 
 // Administrador de edificio de prueba
-$sqlAdminEdif = "INSERT IGNORE INTO `icentPventaUsuarios` (`rut`, `nombre`, `email`, `password`, `telefono`, `rol`) 
+$sqlAdminEdif = "INSERT IGNORE INTO `icentpventausuarios` (`rut`, `nombre`, `email`, `password`, `telefono`, `rol`) 
                  VALUES ('11.223.344-5', 'Pedro Soto A.', 'pedro.soto@email.com', '$userPassword', '+56 9 5544 3322', 'administrador_edificio')";
 $conn->query($sqlAdminEdif);
 
@@ -174,10 +174,10 @@ $conn->close();
             <div class="success">
                 <h3>Tablas creadas:</h3>
                 <ul>
-                    <li><strong>icentPventaUsuarios</strong> — Usuarios del sistema</li>
-                    <li><strong>icentPventaSolicitudes</strong> — Solicitudes de postventa</li>
-                    <li><strong>icentPventaArchivos</strong> — Archivos adjuntos (evidencia)</li>
-                    <li><strong>icentPventaSeguimiento</strong> — Seguimiento de casos</li>
+                    <li><strong>icentpventausuarios</strong> — Usuarios del sistema</li>
+                    <li><strong>icentpventasolicitudes</strong> — Solicitudes de postventa</li>
+                    <li><strong>icentpventaarchivos</strong> — Archivos adjuntos (evidencia)</li>
+                    <li><strong>icentpventaseguimiento</strong> — Seguimiento de casos</li>
                 </ul>
             </div>
             

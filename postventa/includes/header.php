@@ -49,6 +49,10 @@ $currentPage = basename($_SERVER['PHP_SELF']);
     <?php if ($currentPage == 'admin.php' || $currentPage == 'admin-detalle.php' || $currentPage == 'admin-usuarios.php' || $currentPage == 'comunicaciones.php'): ?>
     <link rel="stylesheet" href="<?php echo ASSETS_URL; ?>css/admin.css">
     <?php endif; ?>
+    <!-- Evidencia: al final, para que sus estilos prevalezcan sobre los de página -->
+    <?php if (in_array($currentPage, array('mis-solicitudes.php', 'detalle-caso.php', 'admin.php'))): ?>
+    <link rel="stylesheet" href="<?php echo ASSETS_URL; ?>css/evidencia.css">
+    <?php endif; ?>
 </head>
 <body>
     <!-- Header / Barra superior -->

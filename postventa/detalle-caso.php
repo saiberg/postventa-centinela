@@ -59,6 +59,22 @@ $estadoLabel = isset($estadoLabels[$estado]) ? $estadoLabels[$estado] : $estado;
 $estadoBadge = isset($estadoBadges[$estado]) ? $estadoBadges[$estado] : 'badge-pending';
 $estadoIcon  = isset($estadoIcons[$estado]) ? $estadoIcons[$estado] : 'fa-clock';
 
+// Archivos adjuntos (devueltos por action=detalle)
+$archivos = (isset($apiResponse['archivos']) && is_array($apiResponse['archivos'])) ? $apiResponse['archivos'] : array();
+$totalArchivos = count($archivos);
+
+// Icono de archivo según extensión
+function iconoArchivoDetalle($ext) {
+    $ext = strtolower($ext);
+    if ($ext === 'pdf')  return 'fa-file-pdf';
+    if (in_array($ext, array('zip','rar','7z'))) return 'fa-file-archive';
+    if (in_array($ext, array('doc','docx','rtf','odt'))) return 'fa-file-word';
+    if (in_array($ext, array('xls','xlsx','csv','ods'))) return 'fa-file-excel';
+    if (in_array($ext, array('txt','log','md'))) return 'fa-file-alt';
+    if (in_array($ext, array('mp3','wav','ogg','m4a'))) return 'fa-file-audio';
+    return 'fa-file';
+}
+
 include 'includes/header.php';
 ?>
 
@@ -209,6 +225,66 @@ include 'includes/header.php';
                 <p style="font-size:0.9rem; color: var(--color-gray-700);">
                     <?php echo htmlspecialchars($solicitud['dias_disponibles'] ? $solicitud['dias_disponibles'] : '—'); ?>
                 </p>
+            </div>
+            
+            <!-- Archivos adjuntos / Evidencia -->
+            <div class="detalle-section">
+                <h3>
+                    <i class="fas fa-paperclip"></i> Archivos Adjuntos
+                    <span class="evidence-badge" style="margin-left:auto; font-size:0.75rem;">
+                        <?php echo $totalArchivos; ?>
+                        archivo<?php echo $totalArchivos == 1 ? '' : 's'; ?>
+                    </span>
+                </h3>
+                
+                <?php if ($totalArchivos === 0): ?>
+                <div class="evidence-empty" style="padding:20px 16px;">
+                    <i class="fas fa-folder-open"></i>
+                    Esta solicitud no tiene archivos adjuntos.
+                </div>
+                <?php else: ?>
+                <div class="evidence-grid">
+                    <?php foreach ($archivos as $arch):
+                        $nom = htmlspecialchars($arch['nombre_original'], ENT_QUOTES);
+                        $url = htmlspecialchars($arch['url'], ENT_QUOTES);
+                        $ext = isset($arch['extension']) ? $arch['extension'] : '';
+                    ?>
+                    <div class="evidence-item">
+                        <?php if (!empty($arch['es_imagen'])): ?>
+                        <div class="evidence-thumb">
+                            <img src="<?php echo $url; ?>" alt="<?php echo $nom; ?>" loading="lazy"
+                                 onerror="this.parentNode.innerHTML='<i class=&quot;fas fa-file-image evidence-fileicon&quot;></i>'">
+                        </div>
+                        <?php elseif (!empty($arch['es_video'])): ?>
+                        <div class="evidence-thumb">
+                            <video src="<?php echo $url; ?>" preload="metadata" muted></video>
+                            <span class="evidence-play"><i class="fas fa-play-circle"></i></span>
+                        </div>
+                        <?php else: ?>
+                        <div class="evidence-thumb">
+                            <i class="fas <?php echo iconoArchivoDetalle($ext); ?> evidence-fileicon"></i>
+                        </div>
+                        <?php endif; ?>
+                        
+                        <div class="evidence-meta">
+                            <span class="evidence-name" title="<?php echo $nom; ?>"><?php echo $nom; ?></span>
+                            <span class="evidence-sub">
+                                <?php echo htmlspecialchars($arch['tamano_texto']); ?> &middot;
+                                <?php echo htmlspecialchars($arch['fecha_texto']); ?>
+                            </span>
+                        </div>
+                        <div class="evidence-actions">
+                            <a class="evidence-btn-view" href="<?php echo $url; ?>" target="_blank" rel="noopener">
+                                <i class="fas fa-eye"></i> Ver
+                            </a>
+                            <a class="evidence-btn-dl" href="<?php echo $url; ?>" download>
+                                <i class="fas fa-download"></i> Descargar
+                            </a>
+                        </div>
+                    </div>
+                    <?php endforeach; ?>
+                </div>
+                <?php endif; ?>
             </div>
             
             <!-- Agendamiento y Equipo -->

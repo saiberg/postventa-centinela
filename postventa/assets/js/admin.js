@@ -350,6 +350,7 @@ function loadCaseDetail(caseId) {
             
             var s = response.solicitud;
             var seguimiento = response.seguimiento || [];
+            var archivos = response.archivos || [];
             
             // Formatear fechas
             var fecha = s.created_at ? s.created_at.substring(0, 10).split('-').reverse().join('/') : '—';
@@ -395,33 +396,8 @@ function loadCaseDetail(caseId) {
                 $('#modalUrgenciaSelect').prop('disabled', false);
             }
             
-            // Cargar archivos adjuntos
-            $.ajax({
-                url: 'api/solicitudes.php?action=archivos&solicitud_id=' + s.id,
-                method: 'GET',
-                dataType: 'json',
-                success: function(archResponse) {
-                    var $gallery = $('.evidence-gallery');
-                    $gallery.empty();
-                    
-                    if (archResponse.success && archResponse.archivos && archResponse.archivos.length > 0) {
-                        $.each(archResponse.archivos, function(i, arch) {
-                            var icon = arch.tipo === 'video' ? 'fa-video' : 'fa-image';
-                            var $thumb = $(
-                                '<a href="' + arch.ruta + '" target="_blank" class="evidence-thumb" title="' + arch.nombre_original + '">' +
-                                '<i class="fas ' + icon + '"></i>' +
-                                '</a>'
-                            );
-                            $gallery.append($thumb);
-                        });
-                    } else {
-                        $gallery.html('<span class="text-muted" style="font-size:0.85rem;">Sin archivos adjuntos.</span>');
-                    }
-                },
-                error: function() {
-                    $('.evidence-gallery').html('<span class="text-muted" style="font-size:0.85rem;">Error al cargar archivos.</span>');
-                }
-            });
+            // Cargar archivos adjuntos (ya vienen en action=detalle)
+            renderEvidenciaModal(archivos);
             
             // Renderizar historial de comunicaciones
             renderComunicaciones(seguimiento);
@@ -430,6 +406,96 @@ function loadCaseDetail(caseId) {
             showToast('Error de conexión al cargar el detalle.', 'error');
         }
     });
+}
+
+// Renderizar la galería de evidencia dentro del modal de detalle.
+// Usa el mismo markup que mis-solicitudes.php y detalle-caso.php
+// (ver assets/css/evidencia.css).
+function renderEvidenciaModal(archivos) {
+    var $count = $('#modalEvidenciaCount');
+    var $body  = $('#modalEvidence');
+
+    if (!$body.length) return;
+
+    archivos = archivos || [];
+    var total = archivos.length;
+
+    $count.text(total + (total === 1 ? ' archivo' : ' archivos'))
+          .toggleClass('evidence-badge--empty', total === 0);
+
+    if (total === 0) {
+        $body.html(
+            '<div class="evidence-empty">' +
+            '<i class="fas fa-folder-open"></i>' +
+            'Esta solicitud no tiene archivos adjuntos.' +
+            '</div>'
+        );
+        return;
+    }
+
+    var html = '<div class="evidence-grid">';
+
+    $.each(archivos, function(i, a) {
+        var nombre = escapeHtml(a.nombre_original);
+        var url    = escapeHtml(a.url);
+        var thumb;
+
+        if (a.es_imagen) {
+            thumb = '<div class="evidence-thumb">' +
+                    '<img src="' + url + '" alt="' + nombre + '" loading="lazy" ' +
+                    'onerror="this.parentNode.innerHTML=\'<i class=&quot;fas fa-file-image evidence-fileicon&quot;></i>\'">' +
+                    '</div>';
+        } else if (a.es_video) {
+            thumb = '<div class="evidence-thumb">' +
+                    '<video src="' + url + '" preload="metadata" muted></video>' +
+                    '<span class="evidence-play"><i class="fas fa-play-circle"></i></span>' +
+                    '</div>';
+        } else {
+            thumb = '<div class="evidence-thumb"><i class="fas ' +
+                    iconoArchivoJs(a.extension) + ' evidence-fileicon"></i></div>';
+        }
+
+        html +=
+            '<div class="evidence-item">' + thumb +
+                '<div class="evidence-meta">' +
+                    '<span class="evidence-name" title="' + nombre + '">' + nombre + '</span>' +
+                    '<span class="evidence-sub">' +
+                        escapeHtml(a.tamano_texto) + ' &middot; ' + escapeHtml(a.fecha_texto) +
+                    '</span>' +
+                '</div>' +
+                '<div class="evidence-actions">' +
+                    '<a class="evidence-btn-view" href="' + url + '" target="_blank" rel="noopener">' +
+                        '<i class="fas fa-eye"></i> Ver</a>' +
+                    '<a class="evidence-btn-dl" href="' + url + '" download>' +
+                        '<i class="fas fa-download"></i> Descargar</a>' +
+                '</div>' +
+            '</div>';
+    });
+
+    html += '</div>';
+    $body.html(html);
+}
+
+// Icono de archivo según extensión
+function iconoArchivoJs(ext) {
+    ext = (ext || '').toLowerCase();
+    if (ext === 'pdf') return 'fa-file-pdf';
+    if ($.inArray(ext, ['zip','rar','7z']) !== -1) return 'fa-file-archive';
+    if ($.inArray(ext, ['doc','docx','rtf','odt']) !== -1) return 'fa-file-word';
+    if ($.inArray(ext, ['xls','xlsx','csv','ods']) !== -1) return 'fa-file-excel';
+    if ($.inArray(ext, ['txt','log','md']) !== -1) return 'fa-file-alt';
+    if ($.inArray(ext, ['mp3','wav','ogg','m4a']) !== -1) return 'fa-file-audio';
+    return 'fa-file';
+}
+
+// Escape de HTML (evita inyección desde nombres de archivo de usuario)
+function escapeHtml(value) {
+    return String(value == null ? '' : value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
 }
 
 // Renderizar el historial de comunicaciones en el modal
@@ -615,7 +681,8 @@ $(document).on('click', '#exportBtn', function(e) {
                     'Detalle del Reclamo': item.detalle || '',
                     'Días Disponibles Visita': item.dias || '',
                     'Estado': est,
-                    'Prioridad': urg
+                    'Prioridad': urg,
+                    'Evidencia (archivos)': item.evidencia || 0
                 };
             });
         } else {

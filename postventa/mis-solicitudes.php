@@ -110,7 +110,7 @@ foreach ($solicitudesPaginadas as $row) {
         'agendamiento'   => $row['fecha_agendamiento'] ? date('d/m/Y - H:i', strtotime($row['fecha_agendamiento'])) : null,
         'equipo'         => $row['equipo_asignado'],
         'detalle'        => $row['detalle'],
-        'evidencia'      => 0,
+        'evidencia'      => isset($row['evidencia_count']) ? (int)$row['evidencia_count'] : 0,
         'comentarios'    => $comentarios
     );
 }
@@ -291,17 +291,85 @@ include 'includes/header.php';
     line-height: 1.5;
 }
 
-/* Evidencia */
-.evidence-badge {
-    display: inline-flex;
+/* Evidencia: badge y grid se cargan desde assets/css/evidencia.css */
+
+/* Modal de evidencia (exclusivo de esta página) */
+.evidence-modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, .55);
+    backdrop-filter: blur(2px);
+    z-index: 1050;
+    display: flex;
     align-items: center;
-    gap: 6px;
-    padding: 6px 12px;
-    background: var(--color-primary-bg);
-    color: var(--color-primary);
+    justify-content: center;
+    padding: 20px;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity .2s ease, visibility .2s ease;
+}
+
+.evidence-modal-overlay.is-open {
+    opacity: 1;
+    visibility: visible;
+}
+
+.evidence-modal {
+    background: var(--color-white);
+    border-radius: var(--radius-md);
+    width: 100%;
+    max-width: 720px;
+    max-height: 85vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    box-shadow: 0 20px 60px rgba(0,0,0,.25);
+    transform: translateY(12px);
+    transition: transform .2s ease;
+}
+
+.evidence-modal-overlay.is-open .evidence-modal {
+    transform: translateY(0);
+}
+
+.evidence-modal-header {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--color-gray-200);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.evidence-modal-header h3 {
+    font-family: var(--font-heading);
+    font-size: 1rem;
+    font-weight: 700;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.evidence-modal-close {
+    background: none;
+    border: none;
+    font-size: 1.2rem;
+    color: var(--color-gray-500);
+    cursor: pointer;
+    padding: 4px 8px;
     border-radius: var(--radius-sm);
-    font-size: 0.82rem;
-    font-weight: 500;
+    line-height: 1;
+}
+
+.evidence-modal-close:hover {
+    background: var(--color-gray-100);
+    color: var(--color-gray-800);
+}
+
+.evidence-modal-body {
+    padding: 20px;
+    overflow-y: auto;
 }
 
 @media (max-width: 768px) {
@@ -455,9 +523,20 @@ include 'includes/header.php';
                         <div class="info-item">
                             <span class="info-label">Evidencia</span>
                             <span class="info-value">
-                                <span class="evidence-badge">
-                                    <i class="fas fa-paperclip"></i> <?php echo $sol['evidencia']; ?> archivo(s)
+                                <?php if ($sol['evidencia'] > 0): ?>
+                                <button type="button"
+                                        class="evidence-badge evidence-badge--link"
+                                        onclick="verEvidencia(<?php echo $sol['id_num']; ?>, '<?php echo htmlspecialchars($sol['id'], ENT_QUOTES); ?>')"
+                                        title="Ver archivos adjuntos">
+                                    <i class="fas fa-paperclip"></i>
+                                    <?php echo $sol['evidencia']; ?> archivo<?php echo $sol['evidencia'] == 1 ? '' : 's'; ?>
+                                    <i class="fas fa-external-link-alt evidence-arrow"></i>
+                                </button>
+                                <?php else: ?>
+                                <span class="evidence-badge evidence-badge--empty">
+                                    <i class="fas fa-paperclip"></i> Sin archivos
                                 </span>
+                                <?php endif; ?>
                             </span>
                         </div>
                     </div>
@@ -535,5 +614,152 @@ include 'includes/header.php';
     <?php endif; ?>
     
 </div>
+
+<!-- Modal: Evidencia / Archivos adjuntos -->
+<div class="evidence-modal-overlay" id="evidenceOverlay" role="dialog" aria-modal="true" aria-labelledby="evidenceTitle" hidden>
+    <div class="evidence-modal">
+        <div class="evidence-modal-header">
+            <h3 id="evidenceTitle"><i class="fas fa-paperclip"></i> <span id="evidenceCaseId"></span></h3>
+            <button type="button" class="evidence-modal-close" id="evidenceClose" title="Cerrar" aria-label="Cerrar">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="evidence-modal-body" id="evidenceBody"></div>
+    </div>
+</div>
+
+<script>
+(function () {
+    var overlay = document.getElementById('evidenceOverlay');
+    var body    = document.getElementById('evidenceBody');
+    var title   = document.getElementById('evidenceCaseId');
+    var closeBtn = document.getElementById('evidenceClose');
+    var lastFocused = null;
+    var abortActual = null;
+
+    function escapeHtml(str) {
+        return String(str == null ? '' : str)
+            .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+    }
+
+    function iconoArchivo(ext) {
+        if (['pdf'].indexOf(ext) > -1)  return 'fa-file-pdf';
+        if (['zip','rar','7z'].indexOf(ext) > -1) return 'fa-file-archive';
+        if (['doc','docx','rtf','odt'].indexOf(ext) > -1) return 'fa-file-word';
+        if (['xls','xlsx','csv','ods'].indexOf(ext) > -1) return 'fa-file-excel';
+        if (['txt','log','md'].indexOf(ext) > -1) return 'fa-file-alt';
+        if (['mp3','wav','ogg','m4a'].indexOf(ext) > -1) return 'fa-file-audio';
+        return 'fa-file';
+    }
+
+    function tarjeta(a) {
+        var ext = escapeHtml(a.extension || '');
+        var nombre = escapeHtml(a.nombre_original);
+        var url = escapeHtml(a.url);
+        var thumb;
+
+        if (a.es_imagen) {
+            thumb = '<div class="evidence-thumb">' +
+                    '<img src="' + url + '" alt="' + nombre + '" loading="lazy" ' +
+                    'onerror="this.parentNode.innerHTML=\'<i class=&quot;fas fa-file-image evidence-fileicon&quot;></i>\'">' +
+                    '</div>';
+        } else if (a.es_video) {
+            thumb = '<div class="evidence-thumb">' +
+                    '<video src="' + url + '" preload="metadata" muted></video>' +
+                    '<span class="evidence-play"><i class="fas fa-play-circle"></i></span>' +
+                    '</div>';
+        } else {
+            thumb = '<div class="evidence-thumb"><i class="fas ' + iconoArchivo(ext) + ' evidence-fileicon"></i></div>';
+        }
+
+        return '<div class="evidence-item">' + thumb +
+            '<div class="evidence-meta">' +
+                '<span class="evidence-name" title="' + nombre + '">' + nombre + '</span>' +
+                '<span class="evidence-sub">' + escapeHtml(a.tamano_texto) + ' &middot; ' + escapeHtml(a.fecha_texto) + '</span>' +
+            '</div>' +
+            '<div class="evidence-actions">' +
+                '<a class="evidence-btn-view" href="' + url + '" target="_blank" rel="noopener">' +
+                    '<i class="fas fa-eye"></i> Ver</a>' +
+                '<a class="evidence-btn-dl" href="' + url + '" download>' +
+                    '<i class="fas fa-download"></i> Descargar</a>' +
+            '</div>' +
+        '</div>';
+    }
+
+    function abrir(solicitudId, caseId) {
+        lastFocused = document.activeElement;
+        overlay.hidden = false;
+        // Forzar reflow para que la transición de opacidad se dispare
+        void overlay.offsetWidth;
+        overlay.classList.add('is-open');
+        document.body.style.overflow = 'hidden';
+        title.textContent = '#' + caseId;
+        closeBtn.focus();
+
+        body.innerHTML = '<div class="evidence-loading"><i class="fas fa-spinner fa-spin"></i>Cargando archivos adjuntos...</div>';
+
+        if (abortActual && abortActual.readyState !== 4) { abortActual.abort(); }
+
+        var xhr = new XMLHttpRequest();
+        abortActual = xhr;
+        xhr.open('GET', 'api/solicitudes.php?action=archivos&solicitud_id=' + encodeURIComponent(solicitudId), true);
+        xhr.withCredentials = true;
+        xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+        xhr.onreadystatechange = function () {
+            if (xhr.readyState !== 4 || xhr !== abortActual) return;
+
+            if (xhr.status === 401) {
+                window.location.href = 'login.php';
+                return;
+            }
+
+            var data = null;
+            try { data = JSON.parse(xhr.responseText); } catch (e) { data = null; }
+
+            if (xhr.status !== 200 || !data || !data.success) {
+                var msg = (data && data.message) ? data.message : 'No se pudieron cargar los archivos.';
+                body.innerHTML = '<div class="evidence-error"><i class="fas fa-exclamation-triangle"></i> ' +
+                                  escapeHtml(msg) + '</div>';
+                return;
+            }
+
+            var archivos = data.archivos || [];
+            if (!archivos.length) {
+                body.innerHTML = '<div class="evidence-empty"><i class="fas fa-folder-open"></i>' +
+                                  'Esta solicitud no tiene archivos adjuntos.</div>';
+                return;
+            }
+
+            body.innerHTML = '<div class="evidence-grid">' + archivos.map(tarjeta).join('') + '</div>';
+        };
+        xhr.send();
+    }
+
+    function cerrar() {
+        overlay.classList.remove('is-open');
+        document.body.style.overflow = '';
+        if (abortActual && abortActual.readyState !== 4) { abortActual.abort(); }
+        window.setTimeout(function () {
+            if (!overlay.classList.contains('is-open')) {
+                overlay.hidden = true;
+                body.innerHTML = '';
+            }
+        }, 220);
+        if (lastFocused && lastFocused.focus) { lastFocused.focus(); }
+    }
+
+    // Expuesto globalmente para el onclick de cada tarjeta
+    window.verEvidencia = abrir;
+
+    closeBtn.addEventListener('click', cerrar);
+    overlay.addEventListener('click', function (e) {
+        if (e.target === overlay) cerrar();
+    });
+    document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape' && overlay.classList.contains('is-open')) cerrar();
+    });
+})();
+</script>
 
 <?php include 'includes/footer.php'; ?>
