@@ -779,13 +779,13 @@ switch ($action) {
         $sqlUsuario = "SELECT usuarios.usuario_id FROM usuarios_obras, usuarios 
                        WHERE usuarios_obras.usuario_id = usuarios.usuario_id 
                        AND usuarios.usuario_estado = 0 
-                       AND usuarios_obras.obra_id = '" . SIGRO_OBRA_ID . "' 
+                       AND usuarios_obras.obra_id = '" . $solicitud['obra_id'] . "' 
                        LIMIT 1";
         $resUsuario = dbQuery($db,$sqlUsuario);
         
         if (!$resUsuario || $resUsuario->num_rows === 0) {
-            logger('ERROR', 'No se encontró usuario SIGRO para la obra', ['obra_id' => SIGRO_OBRA_ID, 'solicitud_id' => $solicitudId]);
-            apiError('Error: No se encontró usuario en SIGRO para esta obra.', 500, ['obra_id' => SIGRO_OBRA_ID]);
+            logger('ERROR', 'No se encontró usuario SIGRO para la obra', ['obra_id' => $solicitud['obra_id'], 'solicitud_id' => $solicitudId]);
+            apiError('Error: No se encontró usuario en SIGRO para esta obra.', 500, ['obra_id' => $solicitud['obra_id']]);
         }
         $rowUsuario = $resUsuario->fetch_assoc();
         $sigroUsuarioId = $rowUsuario['usuario_id'];
@@ -795,14 +795,13 @@ switch ($action) {
         
         // Variables para bind_param (deben ser referencias, no constantes)
         $sigroInmobiliariaId       = SIGRO_INMOBILIARIA_ID;
-        $sigroObraId               = SIGRO_OBRA_ID;
         $sigroCategoriaId          = $casoCategoriaId;          // Usar el valor seleccionado por el admin
         $sigroCategoriaDetalleId   = $casoCategoriaDetalleId;  // Usar el valor seleccionado por el admin
         $sigroInmobiliariaUsuarioId = SIGRO_INMOBILIARIA_USUARIO_ID;
         $sigroUsuarioIdRef         = SIGRO_USUARIO_ID;
         
         // Usar el obra_id de la solicitud (el que eligió el usuario), o el de SIGRO como fallback
-        $casoObraId = !empty($solicitud['obra_id']) ? $solicitud['obra_id'] : SIGRO_OBRA_ID;
+        $casoObraId = !empty($solicitud['obra_id']) ? $solicitud['obra_id'] : 0;
         $casoEdificioId = !empty($solicitud['edificio_id']) ? (int)$solicitud['edificio_id'] : 0;
         $casoPisoId = !empty($solicitud['piso_id']) ? (int)$solicitud['piso_id'] : 0;
         $casoDeptoId = !empty($solicitud['departamento_id']) ? (int)$solicitud['departamento_id'] : 0;
