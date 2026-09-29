@@ -17,9 +17,6 @@ define('SIGRO_INMOBILIARIA_USUARIO_ID', '212');
 define('SIGRO_USUARIO_ID', '1');
 define('SIGRO_ARCHIVOS_PATH', __DIR__ . '/../../../postventa/archivos/casos/');
 
-// ID de la inmobiliaria para filtrar obras en el formulario de solicitud
-define('INMOBILIARIA_ID', '45');
-
 // Conexión a la base de datos
 function getDB() {
     static $db = null;

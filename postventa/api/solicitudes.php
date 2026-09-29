@@ -1148,7 +1148,7 @@ switch ($action) {
             
         } elseif ($tipo === 'obras') {
             $tipoEdificioId = isset($_GET['tipo_edificio_id']) ? (int)$_GET['tipo_edificio_id'] : 0;
-            $inmobiliariaId = (int)INMOBILIARIA_ID;
+            $inmobiliariaId = (int)SIGRO_INMOBILIARIA_ID;
             
             if ($tipoEdificioId > 0) {
                 // Obras que tengan edificios del tipo seleccionado
@@ -1348,7 +1348,7 @@ switch ($action) {
         }
         
         $db = getDB();
-        $result = dbQuery($db,"SELECT obra_id, obra_nombre FROM obras WHERE inmobiliaria_id = " . (int)INMOBILIARIA_ID . " AND obra_estado_sistema = 1 ORDER BY obra_nombre ASC");
+        $result = dbQuery($db,"SELECT obra_id, obra_nombre FROM obras WHERE inmobiliaria_id = " . (int)SIGRO_INMOBILIARIA_ID . " AND obra_estado_sistema = 1 ORDER BY obra_nombre ASC");
         $obras = array();
         while ($row = $result->fetch_assoc()) {
             $obras[] = $row;
